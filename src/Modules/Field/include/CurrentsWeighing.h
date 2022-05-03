@@ -62,15 +62,16 @@ namespace pfc
 				for (int _j = 0; _j < cellNodeNumber; _j++)
 					for (int _k = 0; _k < cellNodeNumber; _k++) {
 						FP3 cellNode((particle->getPosition().x + _i * grid->steps.x - (grid->origin.x + i * grid->steps.x)) / grid->steps.x,
-							         (particle->getPosition().y + _j * grid->steps.y - (grid->origin.y + j * grid->steps.y)) / grid->steps.y,
-							         (particle->getPosition().z + _k * grid->steps.z - (grid->origin.z + k * grid->steps.z)) / grid->steps.z);
+							(particle->getPosition().y + _j * grid->steps.y - (grid->origin.y + j * grid->steps.y)) / grid->steps.y,
+							(particle->getPosition().z + _k * grid->steps.z - (grid->origin.z + k * grid->steps.z)) / grid->steps.z);
 						newPosition.push_back(cellNode);
 					}
 
 			for (int _i = 0; _i < cellNodeNumber; _i++)
 				for (int _j = 0; _j < cellNodeNumber; _j++)
 					for (int _k = 0; _k < cellNodeNumber; _k++) {
-						int newPositionIndex = _i * cellNodeNumber * cellNodeNumber + _j * cellNodeNumber + _k; // index of cell node in vector newPosition
+						// index of cell node in vector newPosition
+						int newPositionIndex = _i * cellNodeNumber * cellNodeNumber + _j * cellNodeNumber + _k;
 						FP3 currentDensityDeposit(JBeforeWeighing);
 
 						if (_i) {
