@@ -78,21 +78,21 @@ namespace pfc
 							currentDensityDeposit *= newPosition[newPositionIndex].x;
 						}
 						else {
-							currentDensityDeposit *= 1 - newPosition[newPositionIndex].x;
+							currentDensityDeposit *= (FP)1 - newPosition[newPositionIndex].x;
 						}
 
 						if (_j) {
 							currentDensityDeposit *= newPosition[newPositionIndex].y;
 						}
 						else {
-							currentDensityDeposit *= 1 - newPosition[newPositionIndex].y;
+							currentDensityDeposit *= (FP)1 - newPosition[newPositionIndex].y;
 						}
 
 						if (_k) {
 							currentDensityDeposit *= newPosition[newPositionIndex].z;
 						}
 						else {
-							currentDensityDeposit *= 1 - newPosition[newPositionIndex].z;
+							currentDensityDeposit *= (FP)1 - newPosition[newPositionIndex].z;
 						}
 
 						grid->Jx(i + _i, j + _j, k + _k) += currentDensityDeposit.x;
