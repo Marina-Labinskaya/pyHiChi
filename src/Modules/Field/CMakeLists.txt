@@ -22,5 +22,5 @@ set(fieldModules_headers
     ${FIELDMODULES_HEADER_DIR}/PmlSpectralTimeStraggered.h
     ${FIELDMODULES_HEADER_DIR}/Pstd.h
     ${FIELDMODULES_HEADER_DIR}/Psatd.h
-    ${FIELDMODULES_HEADER_DIR}/CurrentsWeighing.h)
+    ${FIELDMODULES_HEADER_DIR}/CurrentDeposition.h)
 add_custom_target(fieldModules SOURCES ${fieldModules_headers})

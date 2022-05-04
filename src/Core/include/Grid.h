@@ -291,6 +291,17 @@ namespace pfc {
             return getNumExternalLeftCells();
         }
 
+		/* Get grid index and normalized internal coords in [0, 0, 0]..(1, 1, 1) for
+		given physical coords and shift. */
+		void getGridCoords(const FP3 & coords, const FP3 & shift, Int3 & idx,
+			FP3 & internalCoords) const
+		{
+			idx.x = (int)((coords.x - origin.x - shift.x) / steps.x);
+			idx.y = (int)((coords.y - origin.y - shift.y) / steps.y);
+			idx.z = (int)((coords.z - origin.z - shift.z) / steps.z);
+			internalCoords = (coords - baseCoords(idx.x, idx.y, idx.z) - shift) / steps;
+		}
+
         void setInterpolationType(InterpolationType type);
         InterpolationType getInterpolationType() const;
 
@@ -310,16 +321,6 @@ namespace pfc {
         const FP3 shiftEJx, shiftEJy, shiftEJz,
             shiftBx, shiftBy, shiftBz;
 
-        /* Get grid index and normalized internal coords in [0, 0, 0]..(1, 1, 1) for
-        given physical coords and shift. */
-        void getGridCoords(const FP3 & coords, const FP3 & shift, Int3 & idx,
-            FP3 & internalCoords) const
-        {
-            idx.x = (int)((coords.x - origin.x - shift.x) / steps.x);
-            idx.y = (int)((coords.y - origin.y - shift.y) / steps.y);
-            idx.z = (int)((coords.z - origin.z - shift.z) / steps.z);
-            internalCoords = (coords - baseCoords(idx.x, idx.y, idx.z) - shift) / steps;
-        }
 
         void getClosestGridCoords(const FP3 & coords, const FP3 & shift, Int3 & idx,
             FP3 & internalCoords) const
