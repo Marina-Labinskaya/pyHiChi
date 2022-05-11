@@ -291,19 +291,43 @@ namespace pfc {
             return getNumExternalLeftCells();
         }
 
-		/* Get grid index and normalized internal coords in [0, 0, 0]..(1, 1, 1) for
-		given physical coords and shift. */
-		void getGridCoords(const FP3 & coords, const FP3 & shift, Int3 & idx,
-			FP3 & internalCoords) const
-		{
-			idx.x = (int)((coords.x - origin.x - shift.x) / steps.x);
-			idx.y = (int)((coords.y - origin.y - shift.y) / steps.y);
-			idx.z = (int)((coords.z - origin.z - shift.z) / steps.z);
-			internalCoords = (coords - baseCoords(idx.x, idx.y, idx.z) - shift) / steps;
-		}
+        /* Get grid index and normalized internal coords in [0, 0, 0]..(1, 1, 1) for
+        given physical coords and shift. */
+        void getGridCoords(const FP3 & coords, const FP3 & shift, Int3 & idx,
+            FP3 & internalCoords) const
+        {
+            idx.x = (int)((coords.x - origin.x - shift.x) / steps.x);
+            idx.y = (int)((coords.y - origin.y - shift.y) / steps.y);
+            idx.z = (int)((coords.z - origin.z - shift.z) / steps.z);
+            internalCoords = (coords - baseCoords(idx.x, idx.y, idx.z) - shift) / steps;
+        }
 
         void setInterpolationType(InterpolationType type);
         InterpolationType getInterpolationType() const;
+
+        void getIndexJxCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
+            getGridCoords(coords, shiftJx, idx, internalCoords);
+        }
+
+        void getIndexJyCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
+            getGridCoords(coords, shiftJy, idx, internalCoords);
+        }
+
+        void getIndexJzCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
+            getGridCoords(coords, shiftJz, idx, internalCoords);
+        }
+
+        void getIndexBxCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
+            getGridCoords(coords, shiftBx, idx, internalCoords);
+        }
+
+        void getIndexByCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
+            getGridCoords(coords, shiftBy, idx, internalCoords);
+        }
+
+        void getIndexBzCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
+            getGridCoords(coords, shiftBz, idx, internalCoords);
+        }
 
         const Int3 globalGridDims;  // important to initialize it first
         const FP3 steps;
