@@ -306,15 +306,15 @@ namespace pfc {
         InterpolationType getInterpolationType() const;
 
         void getIndexJxCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
-            getGridCoords(coords, shiftJx, idx, internalCoords);
+            getGridCoords(coords, shiftEJx, idx, internalCoords);
         }
 
         void getIndexJyCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
-            getGridCoords(coords, shiftJy, idx, internalCoords);
+            getGridCoords(coords, shiftEJy, idx, internalCoords);
         }
 
         void getIndexJzCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
-            getGridCoords(coords, shiftJz, idx, internalCoords);
+            getGridCoords(coords, shiftEJz, idx, internalCoords);
         }
 
         void getIndexBxCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {

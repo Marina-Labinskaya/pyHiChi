@@ -1,9 +1,11 @@
 #pragma once
 
-#include "Enums.h"
+#include "Constants.h"
 #include "Grid.h"
 #include "ParticleArray.h"
 #include "Particle.h"
+#include "Species.h"
+#include "FieldValue.h"
 
 namespace pfc 
 {
@@ -16,14 +18,14 @@ namespace pfc
     {
     public:
         template<class T_Particle>
-        void operator()(Grid<FP, gridType>* grid, T_Particle* particle, pfc::ZeroizeJ UsingZeroizeJ = USE_ZEROIZEJ) {};
+        void operator()(Grid<FP, gridType>* grid, const T_Particle& particle, pfc::ZeroizeJ UsingZeroizeJ = USE_ZEROIZEJ) {};
 
         template<class T_ParticleArray>
         void operator()(Grid<FP, gridType>* grid, T_ParticleArray* particleArray) {};
     };
 
     template<GridTypes gridType>
-    class FirstOrderCurrentDeposition : public CurrentDeposition
+    class FirstOrderCurrentDeposition : public CurrentDeposition<gridType>
     {
     public:
         template<class T_Particle>
@@ -45,7 +47,6 @@ namespace pfc
             }
         }
 
-    private:
         void CurrentDensityAfterDeposition(ScalarField<FP> & field, const Int3 & idx, const FP3 & internalCoords, const FP & fieldBeforeDeposition)
         {
             field(idx.x, idx.y, idx.z) += ((FP)1 - internalCoords.x) * ((FP)1 - internalCoords.y) * ((FP)1 - internalCoords.z) * fieldBeforeDeposition;
@@ -57,6 +58,9 @@ namespace pfc
             field(idx.x, idx.y + 1, idx.z + 1) += ((FP)1 - internalCoords.x) * internalCoords.y * internalCoords.z * fieldBeforeDeposition;
             field(idx.x + 1, idx.y + 1, idx.z + 1) += internalCoords.x * internalCoords.y * internalCoords.z * fieldBeforeDeposition;
         }
+
+    private:
+        
 
         template<class T_Particle>
         void oneParticleDeposition(Grid<FP, gridType>* grid, T_Particle* particle)
