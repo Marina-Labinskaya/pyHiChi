@@ -60,25 +60,24 @@ namespace pfc
         }
 
     private:
-        
 
         template<class T_Particle>
         void oneParticleDeposition(Grid<FP, gridType>* grid, T_Particle* particle)
         {
+
+            Int3 idxJx, idxJy, idxJz;
+            FP3 internalCoordsJx, internalCoordsJy, internalCoordsJz;
             FP3 particlePosition = particle->getPosition();
-            Int3 idx;
-            FP3 internalCoords;
             
             FP3 JBeforeDeposition = (particle->getVelocity() * particle->getCharge()) / (grid->steps.x * grid->steps.y * grid->steps.z);
 
-            grid->getIndexJxCoords(particlePosition, idx, internalCoords);
-            CurrentDensityAfterDeposition(grid->Jx, idx, internalCoords, JBeforeDeposition.x);
+            grid->getIndexJxCoords(particlePosition, idxJx, internalCoordsJx);
+            grid->getIndexJyCoords(particlePosition, idxJy, internalCoordsJy);
+            grid->getIndexJzCoords(particlePosition, idxJz, internalCoordsJz);
 
-            grid->getIndexJyCoords(particlePosition, idx, internalCoords);
-            CurrentDensityAfterDeposition(grid->Jy, idx, internalCoords, JBeforeDeposition.y);
-
-            grid->getIndexJzCoords(particlePosition, idx, internalCoords);
-            CurrentDensityAfterDeposition(grid->Jz, idx, internalCoords, JBeforeDeposition.z);
+            CurrentDensityAfterDeposition(grid->Jx, idxJx, internalCoordsJx, JBeforeDeposition.x);
+            CurrentDensityAfterDeposition(grid->Jy, idxJy, internalCoordsJy, JBeforeDeposition.y);
+            CurrentDensityAfterDeposition(grid->Jz, idxJz, internalCoordsJz, JBeforeDeposition.z);
         }
     };
 }

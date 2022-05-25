@@ -29,7 +29,8 @@ add_executable(tests
     src/testVectors.cpp
     src/testVectorsProxy.cpp
     src/TestingUtility.cpp
-    src/Main.cpp)
+    src/Main.cpp
+    src/testCurrentDeposition.cpp)
 
 if (APPLE)
     target_link_libraries(tests
