@@ -211,3 +211,77 @@ TEST(CurrentDepositionTest, particleCanGoThroughACycle) {
 
     ASSERT_NO_THROW(true);
 }
+
+
+TEST(CurrentDepositionTest, PlasmaOscillationTest) {
+    int nx = 64, ny = int(nx / 8), nz = int(nx / 8); double L = 1.0;
+    FP dx = L / nx, dy = dx, dz = dx;
+    int Nip = 256;
+    int Np = int(nx / (std::sqrt(2) * constants::pi));
+    int N = Nip * Np;
+    double T0 = 0.01 * constants::electronMass * constants::c * constants::c;
+    double D = T0 / (8 * constants::pi * constants::electronCharge * constants::electronCharge * 0.25 * dx * dx);
+    double dt = (2 * constants::pi) / (Nip * std::sqrt(4 * constants::pi * constants::electronCharge * constants::electronCharge
+        * D / constants::electronMass));
+    int Nc = 30;
+    const int w = D * dx * dx * dx / Nc;
+    double A = 0.05;
+    FP3 p0 = FP3(0.0, 0.0, 0.0);
+
+
+    Int3 numInternalCells = Int3(nx, ny, nz);
+    FP3 minCoords = FP3(0.0, 0.0, 0.0);
+    FP3 steps = FP3(dx, dy, dz);
+    Int3 globalGridDims = numInternalCells;
+
+    YeeGrid grid(numInternalCells, minCoords, steps, globalGridDims);
+    for (int i = 0; i < grid.numCells.x; ++i)
+        for (int j = 0; j < grid.numCells.y; ++j)
+            for (int k = 0; k < grid.numCells.z; ++k) {
+                // qm == constants::electronCharge??
+                grid.Ex(i, j, k) = -2 * L * D * A * constants::electronCharge * std::cos(2 * constants::pi * grid.ExPosition(i, j, k).x / L);
+                grid.Ey(i, j, k) = 0.0;
+                grid.Ez(i, j, k) = 0.0;
+                grid.Bx(i, j, k) = 0.0;
+                grid.By(i, j, k) = 0.0;
+                grid.Bz(i, j, k) = 0.0;
+            }
+
+    RealFieldSolver<YeeGridType> realfieldsolver(&grid, dt, 0.0, 0.5 * dt, 0.5 * dt);
+    PeriodicalFieldGenerator<YeeGridType> generator(&realfieldsolver);
+    FDTD fdtd(&grid, dt);
+    fdtd.setFieldGenerator(&generator);
+    //fdtd.updateFields();
+
+    /*double dist(double x, double y, double z) {
+        return D * (1 + A * std::sin(2 * constants::pi * grid.ExPosition(i, j, k).x / L));
+    }*/
+    ParticleArray3d particleArray;
+
+    FP minpX = 1.0, minpY = 1.0, minpZ = 1.0; //fix!
+    FP maxpX = 2.0, maxpY = 2.0, maxpZ = 2.0; //fix!
+    FP minX = 0.0, minY = 0.0, minZ = 0.0; //fix!
+    FP maxX = minX + grid.numInternalCells.x * dx; //fix!
+    FP maxY = minY + grid.numInternalCells.y * dy; //fix!
+    FP maxZ = minZ + grid.numInternalCells.z * dz; //fix!
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> disX(minX, maxX);
+    std::uniform_real_distribution<> disY(minY, maxY);
+    std::uniform_real_distribution<> disZ(minZ, maxZ);
+
+    std::uniform_real_distribution<> dispX(minpX, maxpX);
+    std::uniform_real_distribution<> dispY(minpY, maxpY);
+    std::uniform_real_distribution<> dispZ(minpZ, maxpZ);
+
+    for (int i = 0; i < grid.numCells.x; ++i)
+        for (int j = 0; j < grid.numCells.y; ++j)
+            for (int k = 0; k < grid.numCells.z; ++k)
+                for (int ip = 0; ip < Nc; ++ip) {
+                    Particle3d::PositionType position(disX(gen), disY(gen), disZ(gen));
+                    Particle3d::MomentumType momentum(p0.x, p0.y, p0.z);
+                    Particle3d particle(position, momentum);
+                    particleArray.pushBack(particle);
+                }
+}
