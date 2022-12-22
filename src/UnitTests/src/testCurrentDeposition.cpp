@@ -6,8 +6,17 @@
 #include "FieldGenerator.h"
 #include "FieldValue.h"
 #include "Particle.h"
+#include "ParticleGenerator.h"
+#include "ParticleSolver.h"
 #include "Pusher.h"
-#include <random>
+#include <fstream>
+
+namespace pfc {
+    double dist(double x, double y, double z) {
+        return (0.01 * constants::electronMass * constants::c * constants::c) / (8 * constants::pi * constants::electronCharge *
+            constants::electronCharge * 0.25 * std::pow(1.0 / 64, 2)) * (1 + 0.05 * std::sin(2 * constants::pi * x));
+    }
+}
 
 using namespace pfc;
 
@@ -214,7 +223,7 @@ TEST(CurrentDepositionTest, particleCanGoThroughACycle) {
 
 
 TEST(CurrentDepositionTest, PlasmaOscillationTest) {
-    int nx = 64, ny = int(nx / 8), nz = int(nx / 8); double L = 1.0;
+    int nx = 16, ny = int(nx / 8), nz = int(nx / 8); double L = 1.0;
     FP dx = L / nx, dy = dx, dz = dx;
     int Nip = 256;
     int Np = int(nx / (std::sqrt(2) * constants::pi));
@@ -224,10 +233,13 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
     double dt = (2 * constants::pi) / (Nip * std::sqrt(4 * constants::pi * constants::electronCharge * constants::electronCharge
         * D / constants::electronMass));
     int Nc = 30;
-    const int w = D * dx * dx * dx / Nc;
+    Particle3d::WeightType w = D * dx * dx * dx / Nc;
     double A = 0.05;
     FP3 p0 = FP3(0.0, 0.0, 0.0);
 
+    BorisPusher scalarPusher;
+
+    FirstOrderCurrentDeposition<YeeGridType> currentdeposition;
 
     Int3 numInternalCells = Int3(nx, ny, nz);
     FP3 minCoords = FP3(0.0, 0.0, 0.0);
@@ -238,8 +250,8 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
     for (int i = 0; i < grid.numCells.x; ++i)
         for (int j = 0; j < grid.numCells.y; ++j)
             for (int k = 0; k < grid.numCells.z; ++k) {
-                // qm == constants::electronCharge??
-                grid.Ex(i, j, k) = -2 * L * D * A * constants::electronCharge * std::cos(2 * constants::pi * grid.ExPosition(i, j, k).x / L);
+                // q_m == constants::electronCharge??
+                grid.Ex(i, j, k) = -2 * L * D * A * constants::electronCharge* constants::electronMass * std::cos(2 * constants::pi * grid.ExPosition(i, j, k).x / L);
                 grid.Ey(i, j, k) = 0.0;
                 grid.Ez(i, j, k) = 0.0;
                 grid.Bx(i, j, k) = 0.0;
@@ -247,41 +259,66 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
                 grid.Bz(i, j, k) = 0.0;
             }
 
+    ParticleArray3d particleArray;
+
+    PeriodicalParticleSolver particleSolver;
+
     RealFieldSolver<YeeGridType> realfieldsolver(&grid, dt, 0.0, 0.5 * dt, 0.5 * dt);
     PeriodicalFieldGenerator<YeeGridType> generator(&realfieldsolver);
     FDTD fdtd(&grid, dt);
     fdtd.setFieldGenerator(&generator);
-    //fdtd.updateFields();
 
-    /*double dist(double x, double y, double z) {
-        return D * (1 + A * std::sin(2 * constants::pi * grid.ExPosition(i, j, k).x / L));
-    }*/
-    ParticleArray3d particleArray;
+    ParticleGenerator particleGenerator;
 
-    FP minpX = 1.0, minpY = 1.0, minpZ = 1.0; //fix!
-    FP maxpX = 2.0, maxpY = 2.0, maxpZ = 2.0; //fix!
-    FP minX = 0.0, minY = 0.0, minZ = 0.0; //fix!
-    FP maxX = minX + grid.numInternalCells.x * dx; //fix!
-    FP maxY = minY + grid.numInternalCells.y * dy; //fix!
-    FP maxZ = minZ + grid.numInternalCells.z * dz; //fix!
+    for (int i = 0; i < grid.numInternalCells.x; ++i)
+        for (int j = 0; j < grid.numInternalCells.y; ++j)
+            for (int k = 0; k < grid.numInternalCells.z; ++k) {
+                Int3 minIdx(i, j, k); Int3 maxIdx(i + 1, j + 1, k + 1);
+                FP3 minCellCoords = minCoords + minIdx * grid.steps;
+                FP3 maxCellCoords = minCoords + maxIdx * grid.steps;
+                particleGenerator(&particleArray, pfc::dist, T0, minCellCoords, maxCellCoords, Nc, p0, w);
+            }
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<> disX(minX, maxX);
-    std::uniform_real_distribution<> disY(minY, maxY);
-    std::uniform_real_distribution<> disZ(minZ, maxZ);
+    std::ofstream fout("OscillationTestEx.txt");
+    std::ofstream fout2("OscillationTestElectronDensity.txt");
 
-    std::uniform_real_distribution<> dispX(minpX, maxpX);
-    std::uniform_real_distribution<> dispY(minpY, maxpY);
-    std::uniform_real_distribution<> dispZ(minpZ, maxpZ);
+    for (int i = 0; i < N; ++i) {
+        //fdtd
+        fdtd.updateFields();
+        //interpolate
+        std::vector<ValueField> fields;
+        for (int i = 0; i < particleArray.size(); i++) {
+            FP3 E, B;
+            grid.getFieldsCIC(particleArray[i].getPosition(), E, B);
+            fields.push_back(ValueField(E, B));
+        }
+        //pusher
+        scalarPusher(&particleArray, fields, dt);
+        //periodical particle position
+        particleSolver.updateParticlePosition(&grid, &particleArray);
+        // current deposition
+        currentdeposition(&grid, &particleArray);
 
-    for (int i = 0; i < grid.numCells.x; ++i)
-        for (int j = 0; j < grid.numCells.y; ++j)
-            for (int k = 0; k < grid.numCells.z; ++k)
-                for (int ip = 0; ip < Nc; ++ip) {
-                    Particle3d::PositionType position(disX(gen), disY(gen), disZ(gen));
-                    Particle3d::MomentumType momentum(p0.x, p0.y, p0.z);
-                    Particle3d particle(position, momentum);
-                    particleArray.pushBack(particle);
+        if (i % 16 == 0) 
+            for (int j = 0; j <= grid.numInternalCells.x; ++j)
+                fout << i << " " << minCoords.x + j * grid.steps.x << " " << grid.Ex(j, 0, 0) << std::endl;
+        for (int k = 0; k < grid.numInternalCells.x; ++k) {
+            int electronCount = 0;
+            FP minCellCoords = minCoords.x + k * grid.steps.x;
+            FP maxCellCoords = minCoords.x + (k + 1) * grid.steps.x;
+            for (int j = 0; j < particleArray.size(); ++j) {
+                if ((i % 16 == 0) && (particleArray[j].getPosition().y >= FP(0)) && (particleArray[j].getPosition().y <= grid.steps.y)
+                    && (particleArray[j].getPosition().z >= FP(0)) && (particleArray[j].getPosition().z <= grid.steps.z)) {
+                    if ((particleArray[j].getPosition().x >= minCellCoords) && (particleArray[j].getPosition().x <= maxCellCoords))
+                        electronCount++;
                 }
+            }
+            double electronDensity = electronCount / (grid.steps.x * grid.steps.y * grid.steps.z);
+            if (i % 16 == 0)
+                fout2 << i << " " << minCellCoords << " " << electronDensity << std::endl;
+        }
+    }
+    fout.close();
+    fout2.close();
+    ASSERT_NO_THROW(true);
 }

@@ -4,6 +4,7 @@
 #include "Grid.h"
 #include "Particle.h"
 #include "Species.h"
+#include <cmath>
 
 namespace pfc {
     class ParticleSolver {
@@ -33,19 +34,19 @@ namespace pfc {
             FP3 maxCoords = minCoords + grid->numInternalCells * grid->steps;
 
             if (particlePosition.x < minCoords.x)
-                particlePosition.x = particlePosition.x + (grid->numInternalCells.x * grid->steps.x);
+                particlePosition.x += std::ceil((abs(particlePosition.x - minCoords.x) / (grid->numInternalCells.x * grid->steps.x))) * (grid->numInternalCells.x * grid->steps.x);
             if (particlePosition.x > maxCoords.x)
-                particlePosition.x = particlePosition.x - (grid->numInternalCells.x * grid->steps.x);
+                particlePosition.x -= std::floor((abs(particlePosition.x - minCoords.x) / (grid->numInternalCells.x * grid->steps.x))) * (grid->numInternalCells.x * grid->steps.x);
 
             if (particlePosition.y < minCoords.y)
-                particlePosition.y = particlePosition.y + (grid->numInternalCells.y * grid->steps.y);
+                particlePosition.y += std::ceil((abs(particlePosition.y - minCoords.y) / (grid->numInternalCells.y * grid->steps.y))) * (grid->numInternalCells.y * grid->steps.y);
             if (particlePosition.y > maxCoords.y)
-                particlePosition.y = particlePosition.y - (grid->numInternalCells.y * grid->steps.y);
+                particlePosition.y -= std::floor((abs(particlePosition.y - minCoords.y) / (grid->numInternalCells.y * grid->steps.y))) * (grid->numInternalCells.y * grid->steps.y);
 
             if (particlePosition.z < minCoords.z)
-                particlePosition.z = particlePosition.z + (grid->numInternalCells.z * grid->steps.z);
+                particlePosition.z += std::ceil((abs(particlePosition.z - minCoords.z) / (grid->numInternalCells.z * grid->steps.z))) * (grid->numInternalCells.z * grid->steps.z);
             if (particlePosition.z > maxCoords.z)
-                particlePosition.z = particlePosition.z - (grid->numInternalCells.z * grid->steps.z);
+                particlePosition.z -= std::floor((abs(particlePosition.z - minCoords.z) / (grid->numInternalCells.z * grid->steps.z))) * (grid->numInternalCells.z * grid->steps.z);
 
             particle.setPosition(particlePosition);
         }

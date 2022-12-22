@@ -6,6 +6,7 @@
 #include "ScalarField.h"
 #include "Vectors.h"
 #include "Constants.h"
+#include <cmath>
 
 namespace pfc {
 
@@ -294,8 +295,7 @@ namespace pfc {
         /* Get grid index and normalized internal coords in [0, 0, 0]..(1, 1, 1) for
         given physical coords and shift. */
         void getGridCoords(const FP3 & coords, const FP3 & shift, Int3 & idx,
-            FP3 & internalCoords) const
-        {
+            FP3 & internalCoords) const {
             idx.x = (int)((coords.x - origin.x - shift.x) / steps.x);
             idx.y = (int)((coords.y - origin.y - shift.y) / steps.y);
             idx.z = (int)((coords.z - origin.z - shift.z) / steps.z);

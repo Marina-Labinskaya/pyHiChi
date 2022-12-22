@@ -16,5 +16,7 @@ set(particleModules_headers
 
     ${PARTICLEMODULES_HEADER_DIR}/Merging.h
     ${PARTICLEMODULES_HEADER_DIR}/Thinning.h
+    ${PARTICLEMODULES_HEADER_DIR}/ParticleSolver.h
+    ${PARTICLEMODULES_HEADER_DIR}/ParticleGenerator.h
 )
 add_custom_target(particleModules SOURCES ${particleModules_headers})

@@ -1,11 +1,8 @@
 #pragma once
 
-#include "Constants.h"
 #include "Grid.h"
 #include "ParticleArray.h"
 #include "Particle.h"
-#include "Species.h"
-#include "FieldValue.h"
 
 namespace pfc 
 {
