@@ -3,6 +3,7 @@
 #include "Grid.h"
 #include "ParticleArray.h"
 #include "Particle.h"
+#include <iostream>
 
 namespace pfc 
 {
@@ -15,7 +16,7 @@ namespace pfc
     {
     public:
         template<class T_Particle>
-        void operator()(Grid<FP, gridType>* grid, const T_Particle& particle, pfc::ZeroizeJ UsingZeroizeJ = USE_ZEROIZEJ) {};
+        void operator()(Grid<FP, gridType>* grid, const T_Particle& particle, pfc::ZeroizeJ UsingZeroizeJ = NOT_USE_ZEROIZEJ) {};
 
         template<class T_ParticleArray>
         void operator()(Grid<FP, gridType>* grid, T_ParticleArray* particleArray) {};
@@ -26,7 +27,7 @@ namespace pfc
     {
     public:
         template<class T_Particle>
-        void operator()(Grid<FP, gridType>* grid, const T_Particle& particle, pfc::ZeroizeJ UsingZeroizeJ = USE_ZEROIZEJ) {
+        void operator()(Grid<FP, gridType>* grid, const T_Particle& particle, pfc::ZeroizeJ UsingZeroizeJ = NOT_USE_ZEROIZEJ) {
             if (UsingZeroizeJ == USE_ZEROIZEJ)
                 grid->zeroizeJ();
             oneParticleDeposition(grid, &particle);
@@ -35,7 +36,7 @@ namespace pfc
         template<class T_ParticleArray>
         void operator()(Grid<FP, gridType>* grid, T_ParticleArray* particleArray) {
             typedef typename T_ParticleArray::ParticleProxyType ParticleProxyType;
-            
+
             grid->zeroizeJ();
             
             for (int i = 0; i < particleArray->size(); i++) {
@@ -68,9 +69,9 @@ namespace pfc
             
             FP3 JBeforeDeposition = (particle->getVelocity() * particle->getCharge()) / (grid->steps.x * grid->steps.y * grid->steps.z);
 
-            grid->getIndexJxCoords(particlePosition, idxJx, internalCoordsJx);
-            grid->getIndexJyCoords(particlePosition, idxJy, internalCoordsJy);
-            grid->getIndexJzCoords(particlePosition, idxJz, internalCoordsJz);
+            grid->getIndexEJxCoords(particlePosition, idxJx, internalCoordsJx);
+            grid->getIndexEJyCoords(particlePosition, idxJy, internalCoordsJy);
+            grid->getIndexEJzCoords(particlePosition, idxJz, internalCoordsJz);
 
             CurrentDensityAfterDeposition(grid->Jx, idxJx, internalCoordsJx, JBeforeDeposition.x);
             CurrentDensityAfterDeposition(grid->Jy, idxJy, internalCoordsJy, JBeforeDeposition.y);

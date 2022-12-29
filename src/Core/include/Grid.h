@@ -305,15 +305,15 @@ namespace pfc {
         void setInterpolationType(InterpolationType type);
         InterpolationType getInterpolationType() const;
 
-        void getIndexJxCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
+        void getIndexEJxCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
             getGridCoords(coords, shiftEJx, idx, internalCoords);
         }
 
-        void getIndexJyCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
+        void getIndexEJyCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
             getGridCoords(coords, shiftEJy, idx, internalCoords);
         }
 
-        void getIndexJzCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
+        void getIndexEJzCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
             getGridCoords(coords, shiftEJz, idx, internalCoords);
         }
 

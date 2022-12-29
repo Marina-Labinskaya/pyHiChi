@@ -54,8 +54,8 @@ namespace pfc {
             double sigma = std::sqrt(0.5 / alpha) * constants::electronMass * constants::c;
             std::random_device rd;
             std::mt19937 gen(rd());
-            std::normal_distribution<> rd_momentum(0.0, sigma);
-            MomentumType newMomentum(momentum.x + rd_momentum(gen), momentum.y + rd_momentum(gen), momentum.z + rd_momentum(gen));
+            std::normal_distribution<> rd_momentum(0.0, 1.0);
+            MomentumType newMomentum(momentum.x + sigma*rd_momentum(gen), momentum.y + sigma*rd_momentum(gen), momentum.z + sigma*rd_momentum(gen));
             return newMomentum;
         }
     };

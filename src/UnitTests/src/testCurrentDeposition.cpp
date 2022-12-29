@@ -14,7 +14,7 @@
 namespace pfc {
     double dist(double x, double y, double z) {
         return (0.01 * constants::electronMass * constants::c * constants::c) / (8 * constants::pi * constants::electronCharge *
-            constants::electronCharge * 0.25 * std::pow(1.0 / 64, 2)) * (1 + 0.05 * std::sin(2 * constants::pi * x));
+            constants::electronCharge * 0.25 * std::pow(1.0 / 16, 2)) * (1 + 0.05 * std::sin(2 * constants::pi * x)); //remember about nx=64
     }
 }
 
@@ -52,13 +52,13 @@ TEST(CurrentDepositionTest, CurrentDepositionForOneParticleIsRight) {
     FirstOrderCurrentDeposition<YeeGridType> currentdeposition;
     currentdeposition(&grid, particle);
 
-    grid.getIndexJxCoords(position, idxX, internalCoordsX);
+    grid.getIndexEJxCoords(position, idxX, internalCoordsX);
     currentdeposition.CurrentDensityAfterDeposition(expectJx, idxX, internalCoordsX, JBefore.x);
 
-    grid.getIndexJyCoords(position, idxY, internalCoordsY);
+    grid.getIndexEJyCoords(position, idxY, internalCoordsY);
     currentdeposition.CurrentDensityAfterDeposition(expectJy, idxY, internalCoordsY, JBefore.y);
 
-    grid.getIndexJzCoords(position, idxZ, internalCoordsZ);
+    grid.getIndexEJzCoords(position, idxZ, internalCoordsZ);
     currentdeposition.CurrentDensityAfterDeposition(expectJz, idxZ, internalCoordsZ, JBefore.z);
 
     for (int i = 0; i < grid.numCells.x; ++i)
@@ -123,13 +123,13 @@ TEST(CurrentDepositionTest, CurrentDepositionForParticleArrayIsRight) {
     {
         FP3 JBefore = (particleArray[i].getVelocity() * particleArray[i].getCharge()) / (steps.x * steps.y * steps.z);
 
-        grid.getIndexJxCoords(particleArray[i].getPosition(), idxX, internalCoordsX);
+        grid.getIndexEJxCoords(particleArray[i].getPosition(), idxX, internalCoordsX);
         currentdeposition.CurrentDensityAfterDeposition(expectJx, idxX, internalCoordsX, JBefore.x);
 
-        grid.getIndexJyCoords(particleArray[i].getPosition(), idxY, internalCoordsY);
+        grid.getIndexEJyCoords(particleArray[i].getPosition(), idxY, internalCoordsY);
         currentdeposition.CurrentDensityAfterDeposition(expectJy, idxY, internalCoordsY, JBefore.y);
 
-        grid.getIndexJzCoords(particleArray[i].getPosition(), idxZ, internalCoordsZ);
+        grid.getIndexEJzCoords(particleArray[i].getPosition(), idxZ, internalCoordsZ);
         currentdeposition.CurrentDensityAfterDeposition(expectJz, idxZ, internalCoordsZ, JBefore.z);
     }
 
@@ -223,16 +223,16 @@ TEST(CurrentDepositionTest, particleCanGoThroughACycle) {
 
 
 TEST(CurrentDepositionTest, PlasmaOscillationTest) {
-    int nx = 16, ny = int(nx / 8), nz = int(nx / 8); double L = 1.0;
+    int nx = 16, ny = 2, nz = 2; double L = 1.0;
     FP dx = L / nx, dy = dx, dz = dx;
     int Nip = 256;
-    int Np = int(nx / (std::sqrt(2) * constants::pi));
+    int Np = int(nx / (2 * std::sqrt(2) * 0.5 * constants::pi));
     int N = Nip * Np;
     double T0 = 0.01 * constants::electronMass * constants::c * constants::c;
     double D = T0 / (8 * constants::pi * constants::electronCharge * constants::electronCharge * 0.25 * dx * dx);
     double dt = (2 * constants::pi) / (Nip * std::sqrt(4 * constants::pi * constants::electronCharge * constants::electronCharge
         * D / constants::electronMass));
-    int Nc = 30;
+    int Nc = 5;
     Particle3d::WeightType w = D * dx * dx * dx / Nc;
     double A = 0.05;
     FP3 p0 = FP3(0.0, 0.0, 0.0);
@@ -250,8 +250,7 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
     for (int i = 0; i < grid.numCells.x; ++i)
         for (int j = 0; j < grid.numCells.y; ++j)
             for (int k = 0; k < grid.numCells.z; ++k) {
-                // q_m == constants::electronCharge??
-                grid.Ex(i, j, k) = -2 * L * D * A * constants::electronCharge* constants::electronMass * std::cos(2 * constants::pi * grid.ExPosition(i, j, k).x / L);
+                grid.Ex(i, j, k) = 2 * L * D * A * constants::electronCharge * std::cos(2 * constants::pi * grid.ExPosition(i,j,k).x / L);
                 grid.Ey(i, j, k) = 0.0;
                 grid.Ez(i, j, k) = 0.0;
                 grid.Bx(i, j, k) = 0.0;
@@ -283,25 +282,12 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
     std::ofstream fout2("OscillationTestElectronDensity.txt");
 
     for (int i = 0; i < N; ++i) {
-        //fdtd
-        fdtd.updateFields();
-        //interpolate
-        std::vector<ValueField> fields;
-        for (int i = 0; i < particleArray.size(); i++) {
-            FP3 E, B;
-            grid.getFieldsCIC(particleArray[i].getPosition(), E, B);
-            fields.push_back(ValueField(E, B));
-        }
-        //pusher
-        scalarPusher(&particleArray, fields, dt);
-        //periodical particle position
-        particleSolver.updateParticlePosition(&grid, &particleArray);
-        // current deposition
-        currentdeposition(&grid, &particleArray);
-
-        if (i % 16 == 0) 
-            for (int j = 0; j <= grid.numInternalCells.x; ++j)
-                fout << i << " " << minCoords.x + j * grid.steps.x << " " << grid.Ex(j, 0, 0) << std::endl;
+        if (i % 16 == 0)
+            for (int j = 0; j <= grid.numInternalCells.x; ++j) {
+                Int3 idx; FP3 internalCoords;
+                grid.getIndexEJzCoords(FP3(minCoords.x + j * grid.steps.x,0,0), idx, internalCoords);
+                fout << i << " " << minCoords.x + j * grid.steps.x << " " << grid.Ex(idx) << std::endl;
+            }
         for (int k = 0; k < grid.numInternalCells.x; ++k) {
             int electronCount = 0;
             FP minCellCoords = minCoords.x + k * grid.steps.x;
@@ -317,6 +303,27 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
             if (i % 16 == 0)
                 fout2 << i << " " << minCellCoords << " " << electronDensity << std::endl;
         }
+
+        //std::cout << "Ex1" << grid.Ex(3, 1, 2) << " ";
+        //fdtd
+        fdtd.updateFields();
+        //interpolate
+        std::vector<ValueField> fields;
+        for (int i = 0; i < particleArray.size(); i++) {
+            FP3 E, B;
+            grid.getFieldsCIC(particleArray[i].getPosition(), E, B);
+            fields.push_back(ValueField(E, B));
+        }
+        //pusher
+        scalarPusher(&particleArray, fields, dt);
+        //periodical particle position
+        particleSolver.updateParticlePosition(&grid, &particleArray);
+        //std::cout << "Ex2" << grid.Ex(3, 1, 2) << " ";
+        std::cout << " jx before" << grid.Jx(3, 1, 2) << " ";
+        // current deposition
+        currentdeposition(&grid, &particleArray);
+        //std::cout << "Ex3" << grid.Ex(3, 1, 2) << std::endl;
+        std::cout << "jx after" << grid.Jx(3, 1, 2) << std::endl;
     }
     fout.close();
     fout2.close();
