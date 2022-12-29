@@ -14,7 +14,7 @@
 namespace pfc {
     double dist(double x, double y, double z) {
         return (0.01 * constants::electronMass * constants::c * constants::c) / (8 * constants::pi * constants::electronCharge *
-            constants::electronCharge * 0.25 * std::pow(1.0 / 16, 2)) * (1 + 0.05 * std::sin(2 * constants::pi * x)); //remember about nx=64
+            constants::electronCharge * 0.25 * std::pow(1.0 / 64, 2)) * (1 + 0.05 * std::sin(2 * constants::pi * x)); //remember about nx=64
     }
 }
 
@@ -223,7 +223,7 @@ TEST(CurrentDepositionTest, particleCanGoThroughACycle) {
 
 
 TEST(CurrentDepositionTest, PlasmaOscillationTest) {
-    int nx = 16, ny = 2, nz = 2; double L = 1.0;
+    int nx = 64, ny = 8, nz = 8; double L = 1.0;
     FP dx = L / nx, dy = dx, dz = dx;
     int Nip = 256;
     int Np = int(nx / (2 * std::sqrt(2) * 0.5 * constants::pi));
@@ -232,6 +232,8 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
     double D = T0 / (8 * constants::pi * constants::electronCharge * constants::electronCharge * 0.25 * dx * dx);
     double dt = (2 * constants::pi) / (Nip * std::sqrt(4 * constants::pi * constants::electronCharge * constants::electronCharge
         * D / constants::electronMass));
+        //double dt = 0.01;
+    //std::cout << dt << std::endl;
     int Nc = 5;
     Particle3d::WeightType w = D * dx * dx * dx / Nc;
     double A = 0.05;
@@ -319,11 +321,11 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
         //periodical particle position
         particleSolver.updateParticlePosition(&grid, &particleArray);
         //std::cout << "Ex2" << grid.Ex(3, 1, 2) << " ";
-        std::cout << " jx before" << grid.Jx(3, 1, 2) << " ";
+        //std::cout << " jx before" << grid.Jx(3, 1, 2) << " ";
         // current deposition
         currentdeposition(&grid, &particleArray);
         //std::cout << "Ex3" << grid.Ex(3, 1, 2) << std::endl;
-        std::cout << "jx after" << grid.Jx(3, 1, 2) << std::endl;
+//std::cout << "jx after" << grid.Jx(3, 1, 2) << std::endl;
     }
     fout.close();
     fout2.close();

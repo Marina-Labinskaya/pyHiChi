@@ -27,15 +27,17 @@ namespace pfc {
             std::uniform_real_distribution<> rd_posY(minCoord.y, maxCoord.y);
             std::uniform_real_distribution<> rd_posZ(minCoord.z, maxCoord.z);
             std::uniform_real_distribution<> u;
-            bool posX_correct = false, posY_correct = false, posZ_correct = false;
+            bool pos_correct = false;// , posY_correct = false, posZ_correct = false;
             FP3 pos;
-            while (!posX_correct) {
+            while (!pos_correct) {
                 pos.x = rd_posX(gen);
-                if ((FP)u(gen) < (FP)(f(pos.x, pos.y, pos.z) * (maxCoord.x - minCoord.x) / counter))
-                    posX_correct = true;
+                pos.y = rd_posY(gen);
+                pos.z = rd_posZ(gen);
+                if ((FP)u(gen) < (FP)(f(pos.x, pos.y, pos.z) * (maxCoord.x - minCoord.x)*(maxCoord.y - minCoord.y)* (maxCoord.z - minCoord.z) / counter))
+                    pos_correct = true;
             }
 
-            while (!posY_correct) {
+            /*while (!posY_correct) {
                 pos.y = rd_posY(gen);
                 if ((FP)u(gen) < (FP)(f(pos.x, pos.y, pos.z) * (maxCoord.y - minCoord.y) / counter))
                     posY_correct = true;
@@ -45,7 +47,7 @@ namespace pfc {
                 pos.z = rd_posZ(gen);
                 if ((FP)u(gen) < (FP)(f(pos.x, pos.y, pos.z) * (maxCoord.z - minCoord.z) / counter))
                     posZ_correct = true;
-            }
+            }*/
 
             return pos;
         }
