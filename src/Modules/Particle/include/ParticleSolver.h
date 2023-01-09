@@ -37,16 +37,32 @@ namespace pfc {
                 particlePosition.x += std::ceil((abs(particlePosition.x - minCoords.x) / (grid->numInternalCells.x * grid->steps.x))) * (grid->numInternalCells.x * grid->steps.x);
             if (particlePosition.x > maxCoords.x)
                 particlePosition.x -= std::floor((abs(particlePosition.x - minCoords.x) / (grid->numInternalCells.x * grid->steps.x))) * (grid->numInternalCells.x * grid->steps.x);
-
+            
             if (particlePosition.y < minCoords.y)
                 particlePosition.y += std::ceil((abs(particlePosition.y - minCoords.y) / (grid->numInternalCells.y * grid->steps.y))) * (grid->numInternalCells.y * grid->steps.y);
             if (particlePosition.y > maxCoords.y)
                 particlePosition.y -= std::floor((abs(particlePosition.y - minCoords.y) / (grid->numInternalCells.y * grid->steps.y))) * (grid->numInternalCells.y * grid->steps.y);
-
+            
             if (particlePosition.z < minCoords.z)
                 particlePosition.z += std::ceil((abs(particlePosition.z - minCoords.z) / (grid->numInternalCells.z * grid->steps.z))) * (grid->numInternalCells.z * grid->steps.z);
             if (particlePosition.z > maxCoords.z)
                 particlePosition.z -= std::floor((abs(particlePosition.z - minCoords.z) / (grid->numInternalCells.z * grid->steps.z))) * (grid->numInternalCells.z * grid->steps.z);
+
+            // why not something like this?
+            //if (particlePosition.x < minCoords.x)
+            //    particlePosition.x = maxCoords.x - (minCoords.x - particlePosition.x);
+            //if (particlePosition.x > maxCoords.x)
+            //    particlePosition.x = minCoords.x + (particlePosition.x - maxCoords.x);
+            //
+            //if (particlePosition.y < minCoords.y)
+            //    particlePosition.y = maxCoords.y - (minCoords.y - particlePosition.y);
+            //if (particlePosition.y > maxCoords.y)
+            //    particlePosition.y = minCoords.y + (particlePosition.y - maxCoords.y);
+            //
+            //if (particlePosition.z < minCoords.z)
+            //    particlePosition.z = maxCoords.z - (minCoords.z - particlePosition.z);
+            //if (particlePosition.z > maxCoords.z)
+            //    particlePosition.z = minCoords.z + (particlePosition.z - maxCoords.z);
 
             particle.setPosition(particlePosition);
         }

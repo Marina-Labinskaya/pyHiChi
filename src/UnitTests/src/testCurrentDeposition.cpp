@@ -11,13 +11,6 @@
 #include "Pusher.h"
 #include <fstream>
 
-namespace pfc {
-    double dist(double x, double y, double z) {
-        return (0.01 * constants::electronMass * constants::c * constants::c) / (8 * constants::pi * constants::electronCharge *
-            constants::electronCharge * 0.25 * std::pow(1.0 / 64, 2)) * (1 + 0.05 * std::sin(2 * constants::pi * x)); //remember about nx=64
-    }
-}
-
 using namespace pfc;
 
 TEST(CurrentDepositionTest, CurrentDepositionForOneParticleIsRight) {
@@ -222,26 +215,36 @@ TEST(CurrentDepositionTest, particleCanGoThroughACycle) {
 }
 
 
+namespace pfc {
+    double dist(double x, double y, double z) {
+        double T0 = 0.01 * constants::electronMass * constants::c * constants::c;
+        double L = 1.0;
+        double dx = L / 64.0; //remember about nx=64
+        double D = T0 / (8 * constants::pi * constants::electronCharge * constants::electronCharge * 0.25 * dx * dx);
+        return D * (1 + 0.05 * std::sin(2 * constants::pi * x / L));
+    }
+}
+
 TEST(CurrentDepositionTest, PlasmaOscillationTest) {
     int nx = 64, ny = 8, nz = 8; double L = 1.0;
     FP dx = L / nx, dy = dx, dz = dx;
     int Nip = 256;
-    int Np = int(nx / (2 * std::sqrt(2) * 0.5 * constants::pi));
+    int Np = 2;  // numer of periods
     int N = Nip * Np;
     double T0 = 0.01 * constants::electronMass * constants::c * constants::c;
     double D = T0 / (8 * constants::pi * constants::electronCharge * constants::electronCharge * 0.25 * dx * dx);
-    double dt = (2 * constants::pi) / (Nip * std::sqrt(4 * constants::pi * constants::electronCharge * constants::electronCharge
-        * D / constants::electronMass));
+    double wp = sqrt(4.0 * constants::pi * constants::electronCharge * constants::electronCharge * D / constants::electronMass);
+    double dt = 2 * (constants::pi / wp) / Nip;
         //double dt = 0.01;
     //std::cout << dt << std::endl;
-    int Nc = 5;
+    int Nc = 30;
     Particle3d::WeightType w = D * dx * dx * dx / Nc;
     double A = 0.05;
     FP3 p0 = FP3(0.0, 0.0, 0.0);
 
     BorisPusher scalarPusher;
 
-    FirstOrderCurrentDeposition<YeeGridType> currentdeposition;
+    FirstOrderCurrentDeposition<YeeGridType> currentDeposition;
 
     Int3 numInternalCells = Int3(nx, ny, nz);
     FP3 minCoords = FP3(0.0, 0.0, 0.0);
@@ -252,7 +255,7 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
     for (int i = 0; i < grid.numCells.x; ++i)
         for (int j = 0; j < grid.numCells.y; ++j)
             for (int k = 0; k < grid.numCells.z; ++k) {
-                grid.Ex(i, j, k) = 2 * L * D * A * constants::electronCharge * std::cos(2 * constants::pi * grid.ExPosition(i,j,k).x / L);
+                grid.Ex(i, j, k) = -2 * L * D * A * constants::electronCharge * std::cos(2 * constants::pi * grid.ExPosition(i,j,k).x / L);
                 grid.Ey(i, j, k) = 0.0;
                 grid.Ez(i, j, k) = 0.0;
                 grid.Bx(i, j, k) = 0.0;
@@ -262,10 +265,9 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
 
     ParticleArray3d particleArray;
 
-    PeriodicalParticleSolver particleSolver;
+    PeriodicalParticleSolver particleSolver;  // maybe, PeriodicalParticleBoundaryConditions is better
 
-    RealFieldSolver<YeeGridType> realfieldsolver(&grid, dt, 0.0, 0.5 * dt, 0.5 * dt);
-    PeriodicalFieldGenerator<YeeGridType> generator(&realfieldsolver);
+    PeriodicalFieldGenerator<YeeGridType> generator;
     FDTD fdtd(&grid, dt);
     fdtd.setFieldGenerator(&generator);
 
@@ -287,21 +289,20 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
         if (i % 16 == 0)
             for (int j = 0; j <= grid.numInternalCells.x; ++j) {
                 Int3 idx; FP3 internalCoords;
-                grid.getIndexEJzCoords(FP3(minCoords.x + j * grid.steps.x,0,0), idx, internalCoords);
-                fout << i << " " << minCoords.x + j * grid.steps.x << " " << grid.Ex(idx) << std::endl;
-            }
+                //grid.getIndexEJzCoords(FP3(minCoords.x + j * grid.steps.x,0,0), idx, internalCoords);
+                fout << i << " " << minCoords.x + j * grid.steps.x << " " << grid.Ex(j, 0, 0) << std::endl;
+            };
         for (int k = 0; k < grid.numInternalCells.x; ++k) {
             int electronCount = 0;
             FP minCellCoords = minCoords.x + k * grid.steps.x;
             FP maxCellCoords = minCoords.x + (k + 1) * grid.steps.x;
             for (int j = 0; j < particleArray.size(); ++j) {
-                if ((i % 16 == 0) && (particleArray[j].getPosition().y >= FP(0)) && (particleArray[j].getPosition().y <= grid.steps.y)
-                    && (particleArray[j].getPosition().z >= FP(0)) && (particleArray[j].getPosition().z <= grid.steps.z)) {
-                    if ((particleArray[j].getPosition().x >= minCellCoords) && (particleArray[j].getPosition().x <= maxCellCoords))
+                if (i % 16 == 0) {
+                    if ((particleArray[j].getPosition().x >= minCellCoords) && (particleArray[j].getPosition().x < maxCellCoords))
                         electronCount++;
                 }
             }
-            double electronDensity = electronCount / (grid.steps.x * grid.steps.y * grid.steps.z);
+            double electronDensity = electronCount / (grid.steps.y * grid.steps.z);  // density through plane
             if (i % 16 == 0)
                 fout2 << i << " " << minCellCoords << " " << electronDensity << std::endl;
         }
@@ -323,9 +324,9 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
         //std::cout << "Ex2" << grid.Ex(3, 1, 2) << " ";
         //std::cout << " jx before" << grid.Jx(3, 1, 2) << " ";
         // current deposition
-        currentdeposition(&grid, &particleArray);
+        currentDeposition(&grid, &particleArray);
         //std::cout << "Ex3" << grid.Ex(3, 1, 2) << std::endl;
-//std::cout << "jx after" << grid.Jx(3, 1, 2) << std::endl;
+        //std::cout << "jx after" << grid.Jx(3, 1, 2) << std::endl;
     }
     fout.close();
     fout2.close();

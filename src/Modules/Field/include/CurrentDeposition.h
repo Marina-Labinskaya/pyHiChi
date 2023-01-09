@@ -67,7 +67,8 @@ namespace pfc
             FP3 internalCoordsJx, internalCoordsJy, internalCoordsJz;
             FP3 particlePosition = particle->getPosition();
             
-            FP3 JBeforeDeposition = (particle->getVelocity() * particle->getCharge()) / (grid->steps.x * grid->steps.y * grid->steps.z);
+            FP3 JBeforeDeposition = (particle->getVelocity() * particle->getCharge() * particle->getWeight()) /
+                (grid->steps.x * grid->steps.y * grid->steps.z);
 
             grid->getIndexEJxCoords(particlePosition, idxJx, internalCoordsJx);
             grid->getIndexEJyCoords(particlePosition, idxJy, internalCoordsJy);
