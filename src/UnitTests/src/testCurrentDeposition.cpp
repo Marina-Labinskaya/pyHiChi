@@ -13,8 +13,11 @@
 
 namespace pfc {
     double dist(double x, double y, double z) {
-        return (0.01 * constants::electronMass * constants::c * constants::c) / (8 * constants::pi * constants::electronCharge *
-            constants::electronCharge * 0.25 * std::pow(1.0 / 64, 2)) * (1 + 0.05 * std::sin(2 * constants::pi * x)); //remember about nx=64
+        double T0 = 0.01 * constants::electronMass * constants::c * constants::c;
+        double L = 1.0;
+        double dx = L / 64.0; //remember about nx=64
+        double D = T0 / (8 * constants::pi * constants::electronCharge * constants::electronCharge * 0.25 * dx * dx);
+        return D * (1 + 0.05 * std::sin(2 * constants::pi * x / L));
     }
 }
 
@@ -226,22 +229,20 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
     int nx = 64, ny = 8, nz = 8; double L = 1.0;
     FP dx = L / nx, dy = dx, dz = dx;
     int Nip = 256;
-    int Np = int(nx / (2 * std::sqrt(2) * 0.5 * constants::pi));
+    int Np = 2;  // numer of periods
     int N = Nip * Np;
     double T0 = 0.01 * constants::electronMass * constants::c * constants::c;
     double D = T0 / (8 * constants::pi * constants::electronCharge * constants::electronCharge * 0.25 * dx * dx);
-    double dt = (2 * constants::pi) / (Nip * std::sqrt(4 * constants::pi * constants::electronCharge * constants::electronCharge
-        * D / constants::electronMass));
-        //double dt = 0.01;
-    //std::cout << dt << std::endl;
-    int Nc = 5;
+    double wp = sqrt(4.0 * constants::pi * constants::electronCharge * constants::electronCharge * D / constants::electronMass);
+    double dt = 2 * (constants::pi / wp) / Nip;
+    int Nc = 30;
     Particle3d::WeightType w = D * dx * dx * dx / Nc;
     double A = 0.05;
     FP3 p0 = FP3(0.0, 0.0, 0.0);
 
     BorisPusher scalarPusher;
 
-    FirstOrderCurrentDeposition<YeeGridType> currentdeposition;
+    FirstOrderCurrentDeposition<YeeGridType> currentDeposition;
 
     Int3 numInternalCells = Int3(nx, ny, nz);
     FP3 minCoords = FP3(0.0, 0.0, 0.0);
@@ -249,10 +250,11 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
     Int3 globalGridDims = numInternalCells;
 
     YeeGrid grid(numInternalCells, minCoords, steps, globalGridDims);
+
     for (int i = 0; i < grid.numCells.x; ++i)
         for (int j = 0; j < grid.numCells.y; ++j)
             for (int k = 0; k < grid.numCells.z; ++k) {
-                grid.Ex(i, j, k) = 2 * L * D * A * constants::electronCharge * std::cos(2 * constants::pi * grid.ExPosition(i,j,k).x / L);
+                grid.Ex(i, j, k) = 0.0;
                 grid.Ey(i, j, k) = 0.0;
                 grid.Ez(i, j, k) = 0.0;
                 grid.Bx(i, j, k) = 0.0;
@@ -260,9 +262,32 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
                 grid.Bz(i, j, k) = 0.0;
             }
 
+    for (int i = grid.getNumExternalLeftCells().x; i < grid.numInternalCells.x + grid.getNumExternalLeftCells().x; ++i)
+        for (int j = grid.getNumExternalLeftCells().y; j < grid.numInternalCells.y + grid.getNumExternalLeftCells().y; ++j)
+            for (int k = grid.getNumExternalLeftCells().z; k < grid.numInternalCells.z + grid.getNumExternalLeftCells().z; ++k) {
+                grid.Ex(i, j, k) = -2 * L * D * A * constants::electronCharge * std::cos(2 * constants::pi * grid.ExPosition(i, j, k).x / L);
+                grid.Ey(i, j, k) = 0.0;
+                grid.Ez(i, j, k) = 0.0;
+                grid.Bx(i, j, k) = 0.0;
+                grid.By(i, j, k) = 0.0;
+                grid.Bz(i, j, k) = 0.0;
+            }
+
+    /*for (int i = 0; i < grid.numCells.x; ++i)
+        for (int j = 0; j < grid.numCells.y; ++j)
+            for (int k = 0; k < grid.numCells.z; ++k) {
+                grid.Ex(i, j, k) = -2 * L * D * A * constants::electronCharge * std::cos(2 * constants::pi * grid.ExPosition(i, j, k).x / L);;
+                grid.Ey(i, j, k) = 0.0;
+                grid.Ez(i, j, k) = 0.0;
+                grid.Bx(i, j, k) = 0.0;
+                grid.By(i, j, k) = 0.0;
+                grid.Bz(i, j, k) = 0.0;
+            }*/
+
+
     ParticleArray3d particleArray;
 
-    PeriodicalParticleSolver particleSolver;
+    PeriodicalParticleBoundaryConditions particleSolver;  // maybe, PeriodicalParticleBoundaryConditions is better
 
     RealFieldSolver<YeeGridType> realfieldsolver(&grid, dt, 0.0, 0.5 * dt, 0.5 * dt);
     PeriodicalFieldGenerator<YeeGridType> generator(&realfieldsolver);
@@ -280,33 +305,31 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
                 particleGenerator(&particleArray, pfc::dist, T0, minCellCoords, maxCellCoords, Nc, p0, w);
             }
 
+
     std::ofstream fout("OscillationTestEx.txt");
     std::ofstream fout2("OscillationTestElectronDensity.txt");
 
-    for (int i = 0; i < N; ++i) {
+    for (int i = 0; i <= N; ++i) {
         if (i % 16 == 0)
-            for (int j = 0; j <= grid.numInternalCells.x; ++j) {
+            for (int j = 0; j < grid.numInternalCells.x; ++j) {
                 Int3 idx; FP3 internalCoords;
-                grid.getIndexEJzCoords(FP3(minCoords.x + j * grid.steps.x,0,0), idx, internalCoords);
-                fout << i << " " << minCoords.x + j * grid.steps.x << " " << grid.Ex(idx) << std::endl;
-            }
+                //grid.getIndexEJzCoords(FP3(minCoords.x + j * grid.steps.x,0,0), idx, internalCoords);
+                fout << i << " " << minCoords.x + j * grid.steps.x << " " << grid.Ex(j + grid.getNumExternalLeftCells().x, grid.getNumExternalLeftCells().y, grid.getNumExternalLeftCells().z) << std::endl;
+            };
         for (int k = 0; k < grid.numInternalCells.x; ++k) {
             int electronCount = 0;
             FP minCellCoords = minCoords.x + k * grid.steps.x;
             FP maxCellCoords = minCoords.x + (k + 1) * grid.steps.x;
             for (int j = 0; j < particleArray.size(); ++j) {
-                if ((i % 16 == 0) && (particleArray[j].getPosition().y >= FP(0)) && (particleArray[j].getPosition().y <= grid.steps.y)
-                    && (particleArray[j].getPosition().z >= FP(0)) && (particleArray[j].getPosition().z <= grid.steps.z)) {
+                if (i % 16 == 0) {
                     if ((particleArray[j].getPosition().x >= minCellCoords) && (particleArray[j].getPosition().x <= maxCellCoords))
                         electronCount++;
                 }
             }
-            double electronDensity = electronCount / (grid.steps.x * grid.steps.y * grid.steps.z);
+            double electronDensity = electronCount / (grid.steps.y * grid.steps.z);  // density through plane
             if (i % 16 == 0)
                 fout2 << i << " " << minCellCoords << " " << electronDensity << std::endl;
         }
-
-        //std::cout << "Ex1" << grid.Ex(3, 1, 2) << " ";
         //fdtd
         fdtd.updateFields();
         //interpolate
@@ -320,12 +343,8 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
         scalarPusher(&particleArray, fields, dt);
         //periodical particle position
         particleSolver.updateParticlePosition(&grid, &particleArray);
-        //std::cout << "Ex2" << grid.Ex(3, 1, 2) << " ";
-        //std::cout << " jx before" << grid.Jx(3, 1, 2) << " ";
         // current deposition
-        currentdeposition(&grid, &particleArray);
-        //std::cout << "Ex3" << grid.Ex(3, 1, 2) << std::endl;
-//std::cout << "jx after" << grid.Jx(3, 1, 2) << std::endl;
+        currentDeposition(&grid, &particleArray);
     }
     fout.close();
     fout2.close();

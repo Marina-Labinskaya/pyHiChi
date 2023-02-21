@@ -38,7 +38,7 @@ namespace pfc
             typedef typename T_ParticleArray::ParticleProxyType ParticleProxyType;
 
             grid->zeroizeJ();
-            
+
             for (int i = 0; i < particleArray->size(); i++) {
                 ParticleProxyType particle = (*particleArray)[i];
                 oneParticleDeposition(grid, &particle);
@@ -66,8 +66,8 @@ namespace pfc
             Int3 idxJx, idxJy, idxJz;
             FP3 internalCoordsJx, internalCoordsJy, internalCoordsJz;
             FP3 particlePosition = particle->getPosition();
-            
-            FP3 JBeforeDeposition = (particle->getVelocity() * particle->getCharge()) / (grid->steps.x * grid->steps.y * grid->steps.z);
+
+            FP3 JBeforeDeposition = (particle->getVelocity() * particle->getCharge() * particle->getWeight()) / (grid->steps.x * grid->steps.y * grid->steps.z);
 
             grid->getIndexEJxCoords(particlePosition, idxJx, internalCoordsJx);
             grid->getIndexEJyCoords(particlePosition, idxJy, internalCoordsJy);
