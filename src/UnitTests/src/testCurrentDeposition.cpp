@@ -1,6 +1,7 @@
 #include "TestingUtility.h"
 
 #include "CurrentDeposition.h"
+#include "CurrentBoundaries.h"
 #include "Constants.h"
 #include "FDTD.h"
 #include "FieldGenerator.h"
@@ -229,13 +230,13 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
     int nx = 64, ny = 8, nz = 8; double L = 1.0;
     FP dx = L / nx, dy = dx, dz = dx;
     int Nip = 256;
-    int Np = 1;  // numer of periods
+    int Np = 2;  // numer of periods
     int N = Nip * Np;
     double T0 = 0.01 * constants::electronMass * constants::c * constants::c;
     double D = T0 / (8 * constants::pi * constants::electronCharge * constants::electronCharge * 0.25 * dx * dx);
     double wp = sqrt(4.0 * constants::pi * constants::electronCharge * constants::electronCharge * D / constants::electronMass);
     double dt = 2 * (constants::pi / wp) / Nip;
-    int Nc = 10;
+    double Nc = 0.5;
     Particle3d::WeightType w = D * dx * dx * dx / Nc;
     double A = 0.05;
     FP3 p0 = FP3(0.0, 0.0, 0.0);
@@ -268,9 +269,12 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
     PeriodicalParticleBoundaryConditions particleSolver;  // maybe, PeriodicalParticleBoundaryConditions is better
 
     RealFieldSolver<YeeGridType> realfieldsolver(&grid, dt, 0.0, 0.5 * dt, 0.5 * dt);
+    RealFieldSolver<YeeGridType> realfieldsolver2(&grid, dt, 0.0, 0.5 * dt, 0.5 * dt);
     PeriodicalFieldGenerator<YeeGridType> generator(&realfieldsolver);
     FDTD fdtd(&grid, dt);
     fdtd.setFieldGenerator(&generator);
+
+    PeriodicalCurrentBoundaryConditions<YeeGridType> periodicalCurrentBoundary(&realfieldsolver2);
 
     ParticleGenerator particleGenerator;
 
@@ -282,32 +286,41 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
                 FP3 maxCellCoords = minCoords + maxIdx * grid.steps;
                 particleGenerator(&particleArray, pfc::dist, T0, minCellCoords, maxCellCoords, Nc, p0, w);
             }
+    std::cout << "n= " << particleArray.size() << std::endl;
 
+    //std::cout << "minCoords:" << minCoords << std::endl;
+    //std::cout << "maxCoords:" << minCoords + grid.numInternalCells * grid.steps << std::endl;
+    //std::cout << "origin: " << grid.origin << std::endl;
+    //std::cout << "area end: " << grid.origin + grid.numCells * grid.steps << std::endl;
+    //std::cout << "step: " << grid.steps << std::endl;
 
-    //std::ofstream fout("OscillationTestEx.txt");
-    //std::ofstream fout2("OscillationTestElectronDensity.txt");
+    std::ofstream fout("OscillationTestEx.txt");
+    std::ofstream fout2("OscillationTestElectronDensity.txt");
 
     for (int i = 0; i <= N; ++i) {
-        //if (i % 16 == 0)
-        //    for (int j = 0; j < grid.numInternalCells.x; ++j) {
-        //        Int3 idx; FP3 internalCoords;
-        //        fout << i << " " << minCoords.x + j * grid.steps.x << " " << grid.Ex(j + grid.getNumExternalLeftCells().x, grid.getNumExternalLeftCells().y, grid.getNumExternalLeftCells().z) << std::endl;
-        //    };
-        //if (i % 16 == 0) {
-        //    for (int k = 0; k < grid.numInternalCells.x; ++k) {
-        //        int electronCount = 0;
-        //        FP minCellCoords = minCoords.x + k * grid.steps.x;
-        //        FP maxCellCoords = minCoords.x + (k + 1) * grid.steps.x;
+        if (i % 16 == 0)
+            for (int j = 0; j < grid.numInternalCells.x; ++j) {
+                Int3 idx; FP3 internalCoords;
+                fout << i << " " << minCoords.x + j * grid.steps.x << " " << grid.Ex(j + grid.getNumExternalLeftCells().x, grid.getNumExternalLeftCells().y, grid.getNumExternalLeftCells().z) << std::endl;
+                //fout << i << " " << minCoords.x + j * grid.steps.x << " " << grid.Ex(j, grid.getNumExternalLeftCells().y, grid.getNumExternalLeftCells().z) << std::endl;
+            };
+        if (i % 16 == 0) {
+            for (int k = 0; k < grid.numInternalCells.x; ++k) {
+                int electronCount = 0;
+                FP minCellCoords = minCoords.x + k * grid.steps.x;
+                FP maxCellCoords = minCoords.x + (k + 1) * grid.steps.x;
+                //FP minCellCoords = grid.origin.x + k * grid.steps.x;
+                //FP maxCellCoords = grid.origin.x + (k + 1) * grid.steps.x;
 
-        //        for (int j = 0; j < particleArray.size(); ++j) {
-        //            if ((particleArray[j].getPosition().x >= minCellCoords) && (particleArray[j].getPosition().x <= maxCellCoords))
-        //                electronCount++;
-        //        }
-        //        double electronDensity = electronCount / (grid.steps.y * grid.steps.z);  // density through plane
-        //        if (i % 16 == 0)
-        //            fout2 << i << " " << minCellCoords << " " << electronDensity << std::endl;
-        //    }
-        //}
+                for (int j = 0; j < particleArray.size(); ++j) {
+                    if ((particleArray[j].getPosition().x >= minCellCoords) && (particleArray[j].getPosition().x <= maxCellCoords))
+                        electronCount++;
+                }
+                double electronDensity = electronCount / (grid.steps.y * grid.steps.z);  // density through plane
+                if (i % 16 == 0)
+                    fout2 << i << " " << minCellCoords << " " << electronDensity << std::endl;
+            }
+        }
         //fdtd
         fdtd.updateFields();
         //interpolate
@@ -320,11 +333,12 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
         //pusher
         scalarPusher(&particleArray, fields, dt);
         //periodical particle position
-        particleSolver.updateParticlePosition(&grid, &particleArray);
+        particleSolver.updateParticlePosition(&grid, &particleArray, dt);
         // current deposition
         currentDeposition(&grid, &particleArray);
+        periodicalCurrentBoundary.updateCurrentBoundaries();
     }
-    //fout.close();
-    //fout2.close();
+    fout.close();
+    fout2.close();
     ASSERT_NO_THROW(true);
 }

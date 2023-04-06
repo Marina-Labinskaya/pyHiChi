@@ -47,6 +47,7 @@ namespace pfc
 
         void CurrentDensityAfterDeposition(ScalarField<FP> & field, const Int3 & idx, const FP3 & internalCoords, const FP & fieldBeforeDeposition)
         {
+            //std::cout << "field coords: " << idx.x << ", " << idx.y << ", " << idx.z << std::endl;
             field(idx.x, idx.y, idx.z) += ((FP)1 - internalCoords.x) * ((FP)1 - internalCoords.y) * ((FP)1 - internalCoords.z) * fieldBeforeDeposition;
             field(idx.x + 1, idx.y, idx.z) += internalCoords.x * ((FP)1 - internalCoords.y) * ((FP)1 - internalCoords.z) * fieldBeforeDeposition;
             field(idx.x, idx.y + 1, idx.z) += ((FP)1 - internalCoords.x) * internalCoords.y * ((FP)1 - internalCoords.z) * fieldBeforeDeposition;
