@@ -23,10 +23,8 @@ namespace pfc
     protected:
         RealFieldSolver<gridTypes>* fieldSolver;
         // major index is index of edge, minor index is index of component
-        std::function<FP(FP, FP, FP, FP)> eLeft[3][3];
-        std::function<FP(FP, FP, FP, FP)> eRight[3][3];
-        std::function<FP(FP, FP, FP, FP)> bLeft[3][3];
-        std::function<FP(FP, FP, FP, FP)> bRight[3][3];
+        std::function<FP(FP, FP, FP, FP)> jLeft[3][3];
+        std::function<FP(FP, FP, FP, FP)> jRight[3][3];
         FP3 leftCoeff;
         FP3 rightCoeff;
     };
@@ -80,11 +78,11 @@ namespace pfc
                     jzCoords = grid->JzPosition(indexes[2].x, indexes[2].y,
                         indexes[2].z);
                     FP coeff = leftCoeff[dim0] * norm_coeffs[dim0];
-                    grid->Jx(indexes[0]) += coeff * eLeft[dim0][0](
+                    grid->Jx(indexes[0]) += coeff * jLeft[dim0][0](
                         jxCoords.x, jxCoords.y, jxCoords.z, time);
-                    grid->Jy(indexes[1]) += coeff * eLeft[dim0][1](
+                    grid->Jy(indexes[1]) += coeff * jLeft[dim0][1](
                         jyCoords.x, jyCoords.y, jyCoords.z, time);
-                    grid->Jz(indexes[2]) += coeff * eLeft[dim0][2](
+                    grid->Jz(indexes[2]) += coeff * jLeft[dim0][2](
                         jzCoords.x, jzCoords.y, jzCoords.z, time);
 
                     index[dim0] = fieldSolver->internalBAreaEnd[dim0] - 2;
@@ -92,11 +90,11 @@ namespace pfc
                     jyCoords += grid->JyPosition(index.x, index.y, index.z);
                     jzCoords += grid->JzPosition(index.x, index.y, index.z);
                     coeff = rightCoeff[dim0] * norm_coeffs[dim0];
-                    grid->Jx(index) += coeff * eRight[dim0][0](
+                    grid->Jx(index) += coeff * jRight[dim0][0](
                         jxCoords.x, jxCoords.y, jxCoords.z, time);
-                    grid->Jy(index) += coeff * eRight[dim0][1](
+                    grid->Jy(index) += coeff * jRight[dim0][1](
                         jyCoords.x, jyCoords.y, jyCoords.z, time);
-                    grid->Jz(index) += coeff * eRight[dim0][2](
+                    grid->Jz(index) += coeff * jRight[dim0][2](
                         jzCoords.x, jzCoords.y, jzCoords.z, time);
                 }
         }
@@ -129,12 +127,12 @@ namespace pfc
                 {
                     // Adjust indexes for symmetry of generation coordinates
                     Int3 indexL, indexR;
-                    indexL[dim0] = this->fieldSolver->internalEAreaBegin[dim0] + 1;
-                    std::cout << "Jgen: internalEAreaBegin[" << dim0 << "]= " << this->fieldSolver->internalEAreaBegin[dim0] << std::endl;
+                    indexL[dim0] = this->fieldSolver->updateEAreaBegin[dim0] + 1;
+                    //std::cout << "Jgen: internalEAreaBegin[" << dim0 << "]= " << this->fieldSolver->internalEAreaBegin[dim0] << std::endl;
                     indexL[dim1] = j;
                     indexL[dim2] = k;
-                    indexR[dim0] = this->fieldSolver->internalEAreaEnd[dim0] - 2;
-                    std::cout << "Jgen: internalEAreaEnd[" << dim0 << "]= " << this->fieldSolver->internalEAreaEnd[dim0] << std::endl;
+                    indexR[dim0] = this->fieldSolver->updateEAreaEnd[dim0] - 2;
+                    //std::cout << "Jgen: internalEAreaEnd[" << dim0 << "]= " << this->fieldSolver->internalEAreaEnd[dim0] << std::endl;
                     indexR[dim1] = j;
                     indexR[dim2] = k;
 
@@ -145,9 +143,9 @@ namespace pfc
                     indexL[dim0]++;
                     indexR[dim0]++;
 
-                    grid->Jx(indexR) = grid->Jx(indexL);
-                    grid->Jy(indexR) = grid->Jy(indexL);
-                    grid->Jz(indexR) = grid->Jz(indexL);
+                    grid->Jx(indexR) += grid->Jx(indexL);
+                    grid->Jy(indexR) += grid->Jy(indexL);
+                    grid->Jz(indexR) += grid->Jz(indexL);
                 }
         }
     }

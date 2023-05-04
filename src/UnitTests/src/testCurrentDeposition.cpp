@@ -236,7 +236,7 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
     double D = T0 / (8 * constants::pi * constants::electronCharge * constants::electronCharge * 0.25 * dx * dx);
     double wp = sqrt(4.0 * constants::pi * constants::electronCharge * constants::electronCharge * D / constants::electronMass);
     double dt = 2 * (constants::pi / wp) / Nip;
-    double Nc = 0.5;
+    double Nc = 30;
     Particle3d::WeightType w = D * dx * dx * dx / Nc;
     double A = 0.05;
     FP3 p0 = FP3(0.0, 0.0, 0.0);
@@ -269,12 +269,9 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
     PeriodicalParticleBoundaryConditions particleSolver;  // maybe, PeriodicalParticleBoundaryConditions is better
 
     RealFieldSolver<YeeGridType> realfieldsolver(&grid, dt, 0.0, 0.5 * dt, 0.5 * dt);
-    RealFieldSolver<YeeGridType> realfieldsolver2(&grid, dt, 0.0, 0.5 * dt, 0.5 * dt);
     PeriodicalFieldGenerator<YeeGridType> generator(&realfieldsolver);
     FDTD fdtd(&grid, dt);
     fdtd.setFieldGenerator(&generator);
-
-    PeriodicalCurrentBoundaryConditions<YeeGridType> periodicalCurrentBoundary(&realfieldsolver2);
 
     ParticleGenerator particleGenerator;
 
@@ -335,6 +332,9 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
         //periodical particle position
         particleSolver.updateParticlePosition(&grid, &particleArray, dt);
         // current deposition
+        realfieldsolver.updateDims();
+        //realfieldsolver.updateInternalDims();
+        PeriodicalCurrentBoundaryConditions<YeeGridType> periodicalCurrentBoundary(&realfieldsolver);
         currentDeposition(&grid, &particleArray);
         periodicalCurrentBoundary.updateCurrentBoundaries();
     }
