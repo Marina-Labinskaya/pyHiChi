@@ -146,6 +146,20 @@ namespace pfc
                     grid->Jx(indexR) += grid->Jx(indexL);
                     grid->Jy(indexR) += grid->Jy(indexL);
                     grid->Jz(indexR) += grid->Jz(indexL);
+
+                    indexL[dim0]--;
+                    indexR[dim0]--;
+
+                    grid->Jx(indexR) = grid->Jx(indexL);
+                    grid->Jy(indexR) = grid->Jy(indexL);
+                    grid->Jz(indexR) = grid->Jz(indexL);
+
+                    indexL[dim0]++;
+                    indexR[dim0]++;
+
+                    grid->Jx(indexL) = grid->Jx(indexR);
+                    grid->Jy(indexL) = grid->Jy(indexR);
+                    grid->Jz(indexL) = grid->Jz(indexR);
                 }
         }
     }
