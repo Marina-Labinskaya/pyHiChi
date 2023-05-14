@@ -121,45 +121,50 @@ namespace pfc
             int begin2 = 0;
             int end1 = grid->numCells[dim1];
             int end2 = grid->numCells[dim2];
+
             //OMP_FOR_COLLAPSE()
             for (int j = begin1; j < end1; j++)
                 for (int k = begin2; k < end2; k++)
                 {
                     // Adjust indexes for symmetry of generation coordinates
                     Int3 indexL, indexR;
-                    indexL[dim0] = this->fieldSolver->updateEAreaBegin[dim0] + 1;
-                    //std::cout << "Jgen: internalEAreaBegin[" << dim0 << "]= " << this->fieldSolver->internalEAreaBegin[dim0] << std::endl;
+                    indexL[dim0] = 0;
                     indexL[dim1] = j;
                     indexL[dim2] = k;
-                    indexR[dim0] = this->fieldSolver->updateEAreaEnd[dim0] - 2;
-                    //std::cout << "Jgen: internalEAreaEnd[" << dim0 << "]= " << this->fieldSolver->internalEAreaEnd[dim0] << std::endl;
+                    indexR[dim0] = indexL[dim0] + grid->numInternalCells[dim0];
                     indexR[dim1] = j;
                     indexR[dim2] = k;
 
-                    grid->Jx(indexL) += grid->Jx(indexR);
-                    grid->Jy(indexL) += grid->Jy(indexR);
-                    grid->Jz(indexL) += grid->Jz(indexR);
+                    const int numExchangeCells = grid->getNumExternalLeftCells()[dim0];
 
-                    indexL[dim0]++;
-                    indexR[dim0]++;
+                    for (int i = 0; i < numExchangeCells; i++) {
+                        indexL[dim0] += i;
+                        indexR[dim0] += i;
 
-                    grid->Jx(indexR) += grid->Jx(indexL);
-                    grid->Jy(indexR) += grid->Jy(indexL);
-                    grid->Jz(indexR) += grid->Jz(indexL);
+                        grid->Jx(indexR) += grid->Jx(indexL);
+                        grid->Jy(indexR) += grid->Jy(indexL);
+                        grid->Jz(indexR) += grid->Jz(indexL);
 
-                    indexL[dim0]--;
-                    indexR[dim0]--;
+                        grid->Jx(indexL) = grid->Jx(indexR);
+                        grid->Jy(indexL) = grid->Jy(indexR);
+                        grid->Jz(indexL) = grid->Jz(indexR);
+                    }
 
-                    grid->Jx(indexR) = grid->Jx(indexL);
-                    grid->Jy(indexR) = grid->Jy(indexL);
-                    grid->Jz(indexR) = grid->Jz(indexL);
+                    indexL[dim0] = grid->getNumExternalLeftCells()[dim0];
+                    indexR[dim0] = indexL[dim0] + grid->numInternalCells[dim0];
 
-                    indexL[dim0]++;
-                    indexR[dim0]++;
+                    for (int i = 0; i < numExchangeCells; i++) {
+                        indexL[dim0] += i;
+                        indexR[dim0] += i;
 
-                    grid->Jx(indexL) = grid->Jx(indexR);
-                    grid->Jy(indexL) = grid->Jy(indexR);
-                    grid->Jz(indexL) = grid->Jz(indexR);
+                        grid->Jx(indexL) += grid->Jx(indexR);
+                        grid->Jy(indexL) += grid->Jy(indexR);
+                        grid->Jz(indexL) += grid->Jz(indexR);
+
+                        grid->Jx(indexR) = grid->Jx(indexL);
+                        grid->Jy(indexR) = grid->Jy(indexL);
+                        grid->Jz(indexR) = grid->Jz(indexL);
+                    }
                 }
         }
     }
