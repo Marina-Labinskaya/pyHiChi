@@ -8,10 +8,16 @@
 
 using namespace pfc;
 
-namespace pfc {
-    double f(double x, double y, double z) {
-        return x;
-    }
+static FP testParticleGeneratorTestParticlePositionIsInsideGridParticleDensityFunc(FP x, FP y, FP z) {
+    return x;
+}
+
+static FP testParticleGeneratorTestParticlePositionIsInsideGridInitialTemperatureFunc(FP x, FP y, FP z) {
+    return 0.0;
+}
+
+static FP3 testParticleGeneratorTestParticlePositionIsInsideGridInitialMomentumFunc(FP x, FP y, FP z) {
+    return FP3(0.0, 0.0, 0.0);
 }
 
 TEST(ParticleGeneratorTest, ParticlePositionIsInsideGrid) {
@@ -25,7 +31,7 @@ TEST(ParticleGeneratorTest, ParticlePositionIsInsideGrid) {
     Int3 globalGridDims = numInternalCells;
     YeeGrid grid(numInternalCells, minCoords, steps, globalGridDims);
     FP3 maxCoords = minCoords + grid.numInternalCells * grid.steps;
-    double T0 = 1.0;
+    FP T0 = 1.0;
 
     for (int i = 0; i < grid.numCells.x; ++i)
         for (int j = 0; j < grid.numCells.y; ++j)
@@ -41,7 +47,12 @@ TEST(ParticleGeneratorTest, ParticlePositionIsInsideGrid) {
     ParticleArray3d particleArray;
 
     ParticleGenerator particleGenerator;
-    particleGenerator(&particleArray, f, T0, minCoords, maxCoords);
+    particleGenerator(&particleArray, &grid,
+        testParticleGeneratorTestParticlePositionIsInsideGridParticleDensityFunc,
+        testParticleGeneratorTestParticlePositionIsInsideGridInitialTemperatureFunc,
+        testParticleGeneratorTestParticlePositionIsInsideGridInitialMomentumFunc
+        );
+
     for (int i = 0; i < particleArray.size(); ++i)
         ASSERT_TRUE((particleArray[i].getPosition().x >= minCoords.x) && (particleArray[i].getPosition().x <= maxCoords.x)
                  && (particleArray[i].getPosition().y >= minCoords.y) && (particleArray[i].getPosition().y <= maxCoords.y)

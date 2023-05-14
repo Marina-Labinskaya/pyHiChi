@@ -12,16 +12,6 @@
 #include "Pusher.h"
 #include <fstream>
 
-namespace pfc {
-    double dist(double x, double y, double z) {
-        double T0 = 0.01 * constants::electronMass * constants::c * constants::c;
-        double L = 1.0;
-        double dx = L / 64.0; //remember about nx=64
-        double D = T0 / (8 * constants::pi * constants::electronCharge * constants::electronCharge * 0.25 * dx * dx);
-        return D * (1 + 0.05 * std::sin(2 * constants::pi * x / L));
-    }
-}
-
 using namespace pfc;
 
 TEST(CurrentDepositionTest, CurrentDepositionForOneParticleIsRight) {
@@ -169,7 +159,7 @@ TEST(CurrentDepositionTest, particleCanGoThroughACycle) {
             }
 
     // field solver
-    const double dt = 0.001;
+    const FP dt = 0.001;
     RealFieldSolver<YeeGridType> realfieldsolver(&grid, dt, 0.0, 0.5 * dt, 0.5 * dt);
     PeriodicalFieldGenerator<YeeGridType> generator(&realfieldsolver);
     FDTD fdtd(&grid, dt);
@@ -226,19 +216,37 @@ TEST(CurrentDepositionTest, particleCanGoThroughACycle) {
 }
 
 
+static FP testCurrentDepositionTestPlasmaOscillationTestParticleDensityFunc(FP x, FP y, FP z) {
+    FP T0 = 0.01 * constants::electronMass * constants::c * constants::c;
+    FP L = 1.0;
+    FP dx = L / 64.0; //remember about nx=64
+    FP D = T0 / (8 * constants::pi * constants::electronCharge * constants::electronCharge * 0.25 * dx * dx);
+    return D * (1 + 0.05 * std::sin(2 * constants::pi * x / L));
+}
+
+static FP testCurrentDepositionTestPlasmaOscillationTestInitialTemperatureFunc(FP x, FP y, FP z) {
+    FP T0 = 0.01 * constants::electronMass * constants::c * constants::c;
+    return T0;
+}
+
+static FP3 testCurrentDepositionTestPlasmaOscillationTestInitialMomentumFunc(FP x, FP y, FP z) {
+    return FP3(0.0, 0.0, 0.0);
+}
+
 TEST(CurrentDepositionTest, PlasmaOscillationTest) {
-    int nx = 64, ny = 8, nz = 8; double L = 1.0;
+    int nx = 64, ny = 8, nz = 8;
+    FP L = 1.0;
     FP dx = L / nx, dy = dx, dz = dx;
     int Nip = 256;
     int Np = 2;  // numer of periods
     int N = Nip * Np;
-    double T0 = 0.01 * constants::electronMass * constants::c * constants::c;
-    double D = T0 / (8 * constants::pi * constants::electronCharge * constants::electronCharge * 0.25 * dx * dx);
-    double wp = sqrt(4.0 * constants::pi * constants::electronCharge * constants::electronCharge * D / constants::electronMass);
-    double dt = 2 * (constants::pi / wp) / Nip;
-    double Nc = 30;
+    FP T0 = 0.01 * constants::electronMass * constants::c * constants::c;
+    FP D = T0 / (8 * constants::pi * constants::electronCharge * constants::electronCharge * 0.25 * dx * dx);
+    FP wp = sqrt(4.0 * constants::pi * constants::electronCharge * constants::electronCharge * D / constants::electronMass);
+    FP dt = 2 * (constants::pi / wp) / Nip;
+    FP Nc = 30;
     Particle3d::WeightType w = D * dx * dx * dx / Nc;
-    double A = 0.05;
+    FP A = 0.05;
     FP3 p0 = FP3(0.0, 0.0, 0.0);
 
     BorisPusher scalarPusher;
@@ -263,26 +271,21 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
                 grid.Bz(i, j, k) = 0.0;
             }
 
-
     ParticleArray3d particleArray;
 
     PeriodicalParticleBoundaryConditions particleSolver;  // maybe, PeriodicalParticleBoundaryConditions is better
 
-    RealFieldSolver<YeeGridType> realfieldsolver(&grid, dt, 0.0, 0.5 * dt, 0.5 * dt);
-    PeriodicalFieldGenerator<YeeGridType> generator(&realfieldsolver);
     FDTD fdtd(&grid, dt);
+    PeriodicalFieldGeneratorYee generator(&fdtd);
     fdtd.setFieldGenerator(&generator);
 
     ParticleGenerator particleGenerator;
-
-    for (int i = 0; i < grid.numInternalCells.x; ++i)
-        for (int j = 0; j < grid.numInternalCells.y; ++j)
-            for (int k = 0; k < grid.numInternalCells.z; ++k) {
-                Int3 minIdx(i, j, k); Int3 maxIdx(i + 1, j + 1, k + 1);
-                FP3 minCellCoords = minCoords + minIdx * grid.steps;
-                FP3 maxCellCoords = minCoords + maxIdx * grid.steps;
-                particleGenerator(&particleArray, pfc::dist, T0, minCellCoords, maxCellCoords, Nc, p0, w);
-            }
+    particleGenerator(&particleArray, &grid,
+        testCurrentDepositionTestPlasmaOscillationTestParticleDensityFunc,
+        testCurrentDepositionTestPlasmaOscillationTestInitialTemperatureFunc,
+        testCurrentDepositionTestPlasmaOscillationTestInitialMomentumFunc,
+        w, ParticleTypes::Electron
+    );
     std::cout << "n= " << particleArray.size() << std::endl;
 
     //std::cout << "minCoords:" << minCoords << std::endl;
@@ -313,7 +316,8 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
                     if ((particleArray[j].getPosition().x >= minCellCoords) && (particleArray[j].getPosition().x <= maxCellCoords))
                         electronCount++;
                 }
-                double electronDensity = electronCount / (grid.steps.y * grid.steps.z);  // density through plane
+                // to sinchronize the output with Picador
+                FP electronDensity = electronCount * w;  // density through plane
                 if (i % 16 == 0)
                     fout2 << i << " " << minCellCoords << " " << electronDensity << std::endl;
             }
@@ -332,9 +336,9 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
         //periodical particle position
         particleSolver.updateParticlePosition(&grid, &particleArray, dt);
         // current deposition
-        realfieldsolver.updateDims();
+        fdtd.updateDims();
         //realfieldsolver.updateInternalDims();
-        PeriodicalCurrentBoundaryConditions<YeeGridType> periodicalCurrentBoundary(&realfieldsolver);
+        PeriodicalCurrentBoundaryConditions<YeeGridType> periodicalCurrentBoundary(&fdtd);
         currentDeposition(&grid, &particleArray);
         periodicalCurrentBoundary.updateCurrentBoundaries();
     }

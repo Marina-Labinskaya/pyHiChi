@@ -1,9 +1,11 @@
 #pragma once
 
+#include <random>
+
 #include "Dimension.h"
 #include "Particle.h"
 #include "VectorsProxy.h"
-#include <random>
+
 
 namespace pfc {
     class ParticleGenerator {
@@ -11,55 +13,97 @@ namespace pfc {
         typedef typename VectorTypeHelper<Three, Real>::Type MomentumType;
         typedef ParticleTypes TypeIndexType;
         typedef Real WeightType;
-     public:
+    public:
+
+        ParticleGenerator():
+            genRound(0), genPosition(0), genMomentum(0) {
+            // TODO: seed initialization according to the current domain
+        }
+
+        template<class T_ParticleArray, class TGrid>
+        void operator()(T_ParticleArray* particleArray,
+            const TGrid* grid,
+            FP(*particleDensity)(FP, FP, FP),
+            FP(*initialTemperature)(FP, FP, FP),
+            FP3(*initialMomentum)(FP, FP, FP),
+            WeightType weight = 1.0,
+            TypeIndexType typeIndex = ParticleTypes::Electron)
+        {
+            Int3 startIndex = grid->getNumExternalLeftCells();
+            Int3 endIndex = grid->getNumExternalLeftCells() + grid->numInternalCells;
+
+            for (int i = startIndex.x; i < endIndex.x; ++i)
+                for (int j = startIndex.y; j < endIndex.y; ++j)
+                    for (int k = startIndex.z; k < endIndex.z; ++k) {
+                        Int3 minIdx(i, j, k); Int3 maxIdx(i + 1, j + 1, k + 1);
+                        FP3 minCellCoords = grid->origin + minIdx * grid->steps;
+                        FP3 maxCellCoords = grid->origin + maxIdx * grid->steps;
+
+                        this->operator()(particleArray,
+                            minCellCoords, maxCellCoords,
+                            particleDensity,
+                            initialTemperature,
+                            initialMomentum,
+                            weight
+                            );
+                    }
+        }
 
         template<class T_ParticleArray>
-        void operator()(T_ParticleArray* particleArray, FP(*f)(FP, FP, FP), FP T0,
-            const FP3& minCoords, const FP3& maxCoords, int counter = 1, const MomentumType& momentum = FP3(0, 0, 0), WeightType weight = 1,
-            TypeIndexType typeIndex = ParticleTypes::Electron);
-    private:
-        FP3 GetParticleRandomPosition(FP(*f)(FP, FP, FP), const FP3& minCoord, const FP3& maxCoord) {
-            std::random_device rd;
-            std::mt19937 gen(rd());
-            std::uniform_real_distribution<> rd_posX(minCoord.x, maxCoord.x);
-            std::uniform_real_distribution<> rd_posY(minCoord.y, maxCoord.y);
-            std::uniform_real_distribution<> rd_posZ(minCoord.z, maxCoord.z);
-            FP3 pos(rd_posX(gen), rd_posY(gen), rd_posZ(gen));
-            return pos;
+        void operator()(T_ParticleArray* particleArray,
+            const FP3& minCellCoords, const FP3& maxCellCoords,
+            FP(*particleDensity)(FP, FP, FP),
+            FP(*initialTemperature)(FP, FP, FP),
+            FP3(*initialMomentum)(FP, FP, FP),
+            WeightType weight = 1.0,
+            TypeIndexType typeIndex = ParticleTypes::Electron)
+        {
+            FP3 center = (minCellCoords + maxCellCoords) * 0.5;
+            // number of particle in cell according to density
+            FP expectedParticleNum = particleDensity(center.x, center.y, center.z) *
+                (maxCellCoords - minCellCoords).volume() / weight;
+
+            int particleNum = int(expectedParticleNum);
+            // random shift of expectedParticleNum by 1 to eliminate the effect of rounding
+            std::uniform_real_distribution<FP> distRound(0.0, 1.0);
+            if (distRound(genRound) < expectedParticleNum - (FP)particleNum)
+                ++particleNum;
+
+            for (int i = 0; i < particleNum; ++i) {
+                PositionType particlePosition(getParticleRandomPosition(minCellCoords, maxCellCoords));
+
+                MomentumType meanMomentum = initialMomentum(particlePosition.x, particlePosition.y, particlePosition.z);
+                FP temperature = initialTemperature(particlePosition.x, particlePosition.y, particlePosition.z);
+                MomentumType particleMomentum(getParticleRandomMomentum(meanMomentum, temperature));
+
+                Particle3d newParticle(particlePosition, particleMomentum, weight, typeIndex);
+                particleArray->pushBack(newParticle);
+            }
         }
-        MomentumType GetParticleRandomMomentum(const MomentumType& momentum, FP T0) {
-            FP alpha = 1.5 / (std::pow(T0 / (constants::electronMass * constants::c * constants::c) + 1, 2) - 1);
+
+    private:
+        
+        default_random_engine genRound, genPosition, genMomentum;
+
+        FP3 getParticleRandomPosition(const FP3& minCoord, const FP3& maxCoord) {
+            std::uniform_real_distribution<FP> distPosX(minCoord.x, maxCoord.x);
+            std::uniform_real_distribution<FP> distPosY(minCoord.y, maxCoord.y);
+            std::uniform_real_distribution<FP> distPosZ(minCoord.z, maxCoord.z);
+            FP3 position(distPosX(genPosition), distPosY(genPosition), distPosZ(genPosition));
+            return position;
+        }
+
+        MomentumType getParticleRandomMomentum(const MomentumType& meanMomentum, FP temperature) {
+            FP alpha = temperature / (constants::electronMass * constants::c * constants::c) + 1.0;
+            alpha = 1.5 / (alpha * alpha - 1.0);
             FP sigma = std::sqrt(0.5 / alpha) * constants::electronMass * constants::c;
-            std::random_device rd;
-            std::mt19937 gen(rd());
-            std::normal_distribution<> rd_momentum(0.0, 1.0);
-            MomentumType newMomentum(momentum.x + sigma*rd_momentum(gen), momentum.y + sigma*rd_momentum(gen), momentum.z + sigma*rd_momentum(gen));
-            return newMomentum;
+            std::normal_distribution<FP> distMom(0.0, 1.0);
+            MomentumType momentum(
+                meanMomentum.x + sigma * distMom(genMomentum),
+                meanMomentum.y + sigma * distMom(genMomentum),
+                meanMomentum.z + sigma * distMom(genMomentum)
+            );
+            return momentum;
         }
     };
-
-    template<class T_ParticleArray>
-    void ParticleGenerator::operator()(T_ParticleArray* particleArray, FP(*density)(FP, FP, FP),
-        FP T0 /*temperature is a function of coordinates in general*/,
-        const FP3& minCoords, const FP3& maxCoords, int averageCount, const MomentumType& momentum, WeightType weight,
-        TypeIndexType typeIndex) {
-        FP3 center = (minCoords + maxCoords) * 0.5;
-        // number of particle in cell according to density
-        FP expectedParticleNum = density(center.x, center.y, center.z) * (maxCoords - minCoords).volume() / weight;
-
-        int particleNum = int(expectedParticleNum);
-        // random shift of expectedParticleNum by 1 to eliminate the effect of rounding
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_real_distribution<> uniformDist(0.0, 1.0);
-        FP randomNumber = uniformDist(gen);
-        if (randomNumber < expectedParticleNum - (FP)particleNum)
-            ++particleNum;
-
-        for (int i = 0; i < particleNum; ++i) {
-            PositionType ParticlePosition(GetParticleRandomPosition(density, minCoords, maxCoords));
-            Particle3d NewParticle(ParticlePosition, GetParticleRandomMomentum(momentum, T0), weight, typeIndex);
-            particleArray->pushBack(NewParticle);
-        }
-    }
 }
