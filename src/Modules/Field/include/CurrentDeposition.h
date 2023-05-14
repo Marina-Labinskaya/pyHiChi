@@ -37,7 +37,7 @@ namespace pfc
 
         template<class T_Particle>
         void depositOneParticle(Grid<FP, gridType>* grid, T_Particle* particle) {
-            static_assert("Error: CurrentDeposition::depositOnePaticle shouldn't be called");
+            static_assert(false, "ERROR: CurrentDeposition::depositOnePaticle shouldn't be called");
         }
     };
 

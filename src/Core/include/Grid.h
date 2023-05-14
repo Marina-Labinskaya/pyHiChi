@@ -496,7 +496,10 @@ namespace pfc {
             minCoords.z - steps.z * getNumExternalLeftCells().z),
         dimensionality((_globalGridDims.x != 1) + (_globalGridDims.y != 1) + (_globalGridDims.z != 1))
     {
-        setInterpolationType(Interpolation_CIC);
+        if (this->numInternalCells < this->getNumExternalLeftCells() + this->getNumExternalRightCells()) {
+            std::cout << "ERROR: grid size should be more than both overlaps" << std::endl;
+            throw std::exception("ERROR: grid size should be more than both overlaps");
+        }
         setInterpolationType(Interpolation_CIC);
     }
 
@@ -522,6 +525,10 @@ namespace pfc {
             minCoords.z - steps.z * getNumExternalLeftCells().z),
         dimensionality((_globalGridDims.x != 1) + (_globalGridDims.y != 1) + (_globalGridDims.z != 1))
     {
+        if (this->numInternalCells < this->getNumExternalLeftCells() + this->getNumExternalRightCells()) {
+            std::cout << "ERROR: grid size should be more than both overlaps" << std::endl;
+            throw std::exception("ERROR: grid size should be more than both overlaps");
+        }
         setInterpolationType(Interpolation_CIC);
     }
 
