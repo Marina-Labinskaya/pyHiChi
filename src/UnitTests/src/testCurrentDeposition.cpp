@@ -46,14 +46,14 @@ TEST(CurrentDepositionTest, CurrentDepositionForOneParticleIsRight) {
     FirstOrderCurrentDeposition<YeeGridType> currentdeposition;
     currentdeposition(&grid, particle);
 
-    grid.getIndexEJxCoords(position, idxX, internalCoordsX);
-    currentdeposition.CurrentDensityAfterDeposition(expectJx, idxX, internalCoordsX, JBefore.x);
+    grid.getIndexEJx(position, idxX, internalCoordsX);
+    currentdeposition.depositComponentCurrent(expectJx, idxX, internalCoordsX, JBefore.x);
 
-    grid.getIndexEJyCoords(position, idxY, internalCoordsY);
-    currentdeposition.CurrentDensityAfterDeposition(expectJy, idxY, internalCoordsY, JBefore.y);
+    grid.getIndexEJy(position, idxY, internalCoordsY);
+    currentdeposition.depositComponentCurrent(expectJy, idxY, internalCoordsY, JBefore.y);
 
-    grid.getIndexEJzCoords(position, idxZ, internalCoordsZ);
-    currentdeposition.CurrentDensityAfterDeposition(expectJz, idxZ, internalCoordsZ, JBefore.z);
+    grid.getIndexEJz(position, idxZ, internalCoordsZ);
+    currentdeposition.depositComponentCurrent(expectJz, idxZ, internalCoordsZ, JBefore.z);
 
     for (int i = 0; i < grid.numCells.x; ++i)
         for (int j = 0; j < grid.numCells.y; ++j)
@@ -117,14 +117,14 @@ TEST(CurrentDepositionTest, CurrentDepositionForParticleArrayIsRight) {
     {
         FP3 JBefore = (particleArray[i].getVelocity() * particleArray[i].getCharge()) / (steps.x * steps.y * steps.z);
 
-        grid.getIndexEJxCoords(particleArray[i].getPosition(), idxX, internalCoordsX);
-        currentdeposition.CurrentDensityAfterDeposition(expectJx, idxX, internalCoordsX, JBefore.x);
+        grid.getIndexEJx(particleArray[i].getPosition(), idxX, internalCoordsX);
+        currentdeposition.depositComponentCurrent(expectJx, idxX, internalCoordsX, JBefore.x);
 
-        grid.getIndexEJyCoords(particleArray[i].getPosition(), idxY, internalCoordsY);
-        currentdeposition.CurrentDensityAfterDeposition(expectJy, idxY, internalCoordsY, JBefore.y);
+        grid.getIndexEJy(particleArray[i].getPosition(), idxY, internalCoordsY);
+        currentdeposition.depositComponentCurrent(expectJy, idxY, internalCoordsY, JBefore.y);
 
-        grid.getIndexEJzCoords(particleArray[i].getPosition(), idxZ, internalCoordsZ);
-        currentdeposition.CurrentDensityAfterDeposition(expectJz, idxZ, internalCoordsZ, JBefore.z);
+        grid.getIndexEJz(particleArray[i].getPosition(), idxZ, internalCoordsZ);
+        currentdeposition.depositComponentCurrent(expectJz, idxZ, internalCoordsZ, JBefore.z);
     }
 
     for (int i = 0; i < grid.numCells.x; ++i)

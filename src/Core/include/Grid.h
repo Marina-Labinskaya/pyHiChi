@@ -19,7 +19,8 @@ namespace pfc {
     class Grid :
         // next labels define some properties of grid
         public LabelFieldsSpatialStraggered<gridType_>,
-        public LabelFieldsTimeStraggered<gridType_>
+        public LabelFieldsTimeStraggered<gridType_>,
+        public LabelMethodRequiredNumberOfExternalCells<gridType_> /* defines numExternalCells*/
     {
 
     public:
@@ -36,6 +37,11 @@ namespace pfc {
 
         // copy constructor, can make shallow copies
         Grid(const Grid& grid, bool ifShallowCopy = false);
+
+        forceinline const FP3 getBaseCoords(int x, int y, int z) const
+        {
+            return baseCoords(x, y, z);
+        }
 
         forceinline const FP3 BxPosition(int x, int y, int z) const
         {
@@ -280,7 +286,7 @@ namespace pfc {
 
         const Int3 getNumExternalLeftCells() const
         {
-            Int3 result(2, 2, 2);
+            Int3 result(numExternalCells, numExternalCells, numExternalCells);
             for (int d = 0; d < 3; d++)
                 if (globalGridDims[d] == 1)
                     result[d] = 0;
@@ -292,41 +298,78 @@ namespace pfc {
             return getNumExternalLeftCells();
         }
 
-        /* Get grid index and normalized internal coords in [0, 0, 0]..(1, 1, 1) for
-        given physical coords and shift. */
-        void getGridCoords(const FP3 & coords, const FP3 & shift, Int3 & idx,
-            FP3 & internalCoords) const {
-            idx.x = (int)((coords.x - origin.x - shift.x) / steps.x);
-            idx.y = (int)((coords.y - origin.y - shift.y) / steps.y);
-            idx.z = (int)((coords.z - origin.z - shift.z) / steps.z);
-            internalCoords = (coords - baseCoords(idx.x, idx.y, idx.z) - shift) / steps;
-        }
-
         void setInterpolationType(InterpolationType type);
         InterpolationType getInterpolationType() const;
 
-        void getIndexEJxCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
+        /* Get left grid index and normalized in cell internal coords in [0, 0, 0]..(1, 1, 1) for
+        given physical coords and shift. */
+        forceinline void getBaseIndex(const FP3& coords, Int3& idx, FP3& internalCoords) const {
+            getGridCoords(coords, FP3(0.0, 0.0, 0.0), idx, internalCoords);
+        }
+        forceinline void getIndexEJx(const FP3& coords, Int3& idx, FP3& internalCoords) const {
             getGridCoords(coords, shiftEJx, idx, internalCoords);
         }
-
-        void getIndexEJyCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
+        forceinline void getIndexEJy(const FP3& coords, Int3& idx, FP3& internalCoords) const {
             getGridCoords(coords, shiftEJy, idx, internalCoords);
         }
-
-        void getIndexEJzCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
+        forceinline void getIndexEJz(const FP3& coords, Int3& idx, FP3& internalCoords) const {
             getGridCoords(coords, shiftEJz, idx, internalCoords);
         }
-
-        void getIndexBxCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
+        forceinline void getIndexBx(const FP3& coords, Int3& idx, FP3& internalCoords) const {
             getGridCoords(coords, shiftBx, idx, internalCoords);
         }
-
-        void getIndexByCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
+        forceinline void getIndexBy(const FP3& coords, Int3& idx, FP3& internalCoords) const {
             getGridCoords(coords, shiftBy, idx, internalCoords);
         }
-
-        void getIndexBzCoords(const FP3 & coords, Int3 & idx, FP3 & internalCoords) const {
+        forceinline void getIndexBz(const FP3& coords, Int3& idx, FP3& internalCoords) const {
             getGridCoords(coords, shiftBz, idx, internalCoords);
+        }
+
+        /* Get the closest grid index and normalized in cell internal coords in [0, 0, 0]..(1, 1, 1) for
+        given physical coords and shift. */
+        forceinline void getClosestBaseIndex(const FP3& coords, Int3& idx, FP3& internalCoords) const {
+            getClosestGridCoords(coords, FP3(0.0, 0.0, 0.0), idx, internalCoords);
+        }
+        forceinline void getClosestIndexEJx(const FP3& coords, Int3& idx, FP3& internalCoords) const {
+            getClosestGridCoords(coords, shiftEJx, idx, internalCoords);
+        }
+        forceinline void getClosestIndexEJy(const FP3& coords, Int3& idx, FP3& internalCoords) const {
+            getClosestGridCoords(coords, shiftEJy, idx, internalCoords);
+        }
+        forceinline void getClosestIndexEJz(const FP3& coords, Int3& idx, FP3& internalCoords) const {
+            getClosestGridCoords(coords, shiftEJz, idx, internalCoords);
+        }
+        forceinline void getClosestIndexBx(const FP3& coords, Int3& idx, FP3& internalCoords) const {
+            getClosestGridCoords(coords, shiftBx, idx, internalCoords);
+        }
+        forceinline void getClosestIndexBy(const FP3& coords, Int3& idx, FP3& internalCoords) const {
+            getClosestGridCoords(coords, shiftBy, idx, internalCoords);
+        }
+        forceinline void getClosestIndexBz(const FP3& coords, Int3& idx, FP3& internalCoords) const {
+            getClosestGridCoords(coords, shiftBz, idx, internalCoords);
+        }
+
+        // if coords is inside of the area that grid defines
+        forceinline bool isInsideBaseCoords(const FP3& coords) const {
+            return isInside(coords, FP3(0.0, 0.0, 0.0));
+        }
+        forceinline bool isInsideEJxCoords(const FP3& coords) const {
+            return isInside(coords, shiftEJx);
+        }
+        forceinline bool isInsideEJyCoords(const FP3& coords) const {
+            return isInside(coords, shiftEJy);
+        }
+        forceinline bool isInsideEJzCoords(const FP3& coords) const {
+            return isInside(coords, shiftEJz);
+        }
+        forceinline bool isInsideBxCoords(const FP3& coords) const {
+            return isInside(coords, shiftBx);
+        }
+        forceinline bool isInsideByCoords(const FP3& coords) const {
+            return isInside(coords, shiftBy);
+        }
+        forceinline bool isInsideBzCoords(const FP3& coords) const {
+            return isInside(coords, shiftBz);
         }
 
         const Int3 globalGridDims;  // important to initialize it first
@@ -338,14 +381,25 @@ namespace pfc {
         const int dimensionality;
 
         ScalarField<Data> Ex, Ey, Ez, Bx, By, Bz, Jx, Jy, Jz;
-        
-    private:
 
         // 3d shifts of the field in the cell
         const FP3 shiftEJx, shiftEJy, shiftEJz,
             shiftBx, shiftBy, shiftBz;
+        
+    private:
 
+        /* Get left grid index and normalized internal coords in [0, 0, 0]..(1, 1, 1) for
+        given physical coords and shift. */
+        void getGridCoords(const FP3& coords, const FP3& shift, Int3& idx,
+            FP3& internalCoords) const {
+            idx.x = (int)((coords.x - origin.x - shift.x) / steps.x);
+            idx.y = (int)((coords.y - origin.y - shift.y) / steps.y);
+            idx.z = (int)((coords.z - origin.z - shift.z) / steps.z);
+            internalCoords = (coords - baseCoords(idx.x, idx.y, idx.z) - shift) / steps;
+        }
 
+        /* Get the closest grid index and normalized internal coords in [0, 0, 0]..(1, 1, 1) for
+        given physical coords and shift. */
         void getClosestGridCoords(const FP3 & coords, const FP3 & shift, Int3 & idx,
             FP3 & internalCoords) const
         {
