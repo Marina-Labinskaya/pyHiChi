@@ -78,4 +78,6 @@ namespace pfc
             depositComponentCurrent(grid->Jz, idxJz, internalCoordsJz, current.z);
         }
     };
+    
+    typedef FirstOrderCurrentDeposition<YeeGridType> FirstOrderCurrentDepositionYee;
 }

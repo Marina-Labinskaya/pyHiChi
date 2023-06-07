@@ -10,6 +10,8 @@
 #include "pyField.h"
 
 #include "Constants.h"
+#include "CurrentBoundaries.h"
+#include "CurrentDeposition.h"
 #include "Dimension.h"
 #include "Ensemble.h"
 #include "Fdtd.h"
@@ -18,6 +20,8 @@
 #include "Merging.h"
 #include "Particle.h"
 #include "ParticleArray.h"
+#include "ParticleGenerator.h"
+#include "ParticleSolver.h"
 #include "ParticleTypes.h"
 #include "Pstd.h"
 #include "Psatd.h"
@@ -299,6 +303,35 @@ PYBIND11_MODULE(pyHiChi, object) {
         .def("__call__", (void (RadiationReaction::*)(ParticleProxy3d*, ValueField&, FP)) &RadiationReaction::operator())
         .def("__call__", (void (RadiationReaction::*)(Particle3d*, ValueField&, FP)) &RadiationReaction::operator())
         .def("__call__", (void (RadiationReaction::*)(ParticleArray3d*, std::vector<ValueField>&, FP)) &RadiationReaction::operator())
+        ;
+
+    // ------------------- current deposition ----------------------
+
+    py::class_<FirstOrderCurrentDepositionYee>(object, "FirstOrderCurrentDepositionYee")
+        .def(py::init<>())
+        //.def("__call__", (void (FirstOrderCurrentDepositionYee::*)(Grid<FP, YeeGridType>*, const Particle3d&, CurrentDeposition::ZeroizeJ::NOT_USE_ZEROIZEJ)) &FirstOrderCurrentDepositionYee::operator())
+        .def("__call__", (void (FirstOrderCurrentDepositionYee::*)(Grid<FP, YeeGridType>*, ParticleArray3d*)) &FirstOrderCurrentDepositionYee::operator())
+        ;
+
+    // ------------------- periodical conditions for current --------
+
+    py::class_<PeriodicalCurrentBoundaryConditions<YeeGridType>>(object, "periodical_J_BC")
+        .def(py::init<>())
+        .def("__call__", (void (PeriodicalCurrentBoundaryConditions<YeeGridType>::*)()) &PeriodicalCurrentBoundaryConditions<YeeGridType>::updateCurrentBoundaries)
+        ;
+
+    // ------------------ periodical conditions for particles --------
+
+    py::class_<PeriodicalParticleBoundaryConditions>(object, "periodical_particle_BC")
+        .def(py::init<>())
+        .def("__call__", (void (PeriodicalParticleBoundaryConditions::*)(Grid<FP, YeeGridType>*, ParticleArray3d*, double)) &PeriodicalParticleBoundaryConditions::updateParticlePosition)
+        ;
+
+    // ------------------particle generator ------------------------
+
+    py::class_<ParticleGenerator>(object, "ParticleGenerator")
+        .def(py::init<>())
+        .def("__call__", (void (ParticleGenerator::*)(ParticleArray3d*, const YeeGrid*, FP(*)(FP, FP, FP), FP(*)(FP, FP, FP), FP3(*)(FP, FP, FP), FP, ParticleTypes)) &ParticleGenerator::operator())
         ;
 
     // -------------------------- QED ---------------------------

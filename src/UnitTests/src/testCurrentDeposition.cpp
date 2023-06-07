@@ -263,7 +263,7 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
     for (int i = 0; i < grid.numCells.x; ++i)
         for (int j = 0; j < grid.numCells.y; ++j)
             for (int k = 0; k < grid.numCells.z; ++k) {
-                grid.Ex(i, j, k) = -2 * L * D * A * constants::electronCharge * std::cos(2 * constants::pi * grid.ExPosition(i, j, k).x / L);;
+                grid.Ex(i, j, k) = -2 * L * D * A * constants::electronCharge * std::cos(2 * constants::pi * grid.ExPosition(i, j, k).x / L);
                 grid.Ey(i, j, k) = 0.0;
                 grid.Ez(i, j, k) = 0.0;
                 grid.Bx(i, j, k) = 0.0;

@@ -2,8 +2,6 @@
 
 #include "FieldSolver.h"
 #include "Grid.h"
-#include "Species.h"
-#include "Vectors.h"
 
 #include <iostream>
 
