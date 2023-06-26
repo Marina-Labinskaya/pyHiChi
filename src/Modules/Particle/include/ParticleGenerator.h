@@ -1,7 +1,6 @@
 #pragma once
 
 #include <random>
-
 #include "Dimension.h"
 #include "Particle.h"
 #include "VectorsProxy.h"
@@ -20,9 +19,9 @@ namespace pfc {
             // TODO: seed initialization according to the current domain
         }
 
-        template<class T_ParticleArray, class TGrid>
+        template<class T_ParticleArray, GridTypes gridType>
         void operator()(T_ParticleArray* particleArray,
-            const TGrid* grid,
+            const Grid<FP, gridType>* grid,
             FP(*particleDensity)(FP, FP, FP),
             FP(*initialTemperature)(FP, FP, FP),
             FP3(*initialMomentum)(FP, FP, FP),

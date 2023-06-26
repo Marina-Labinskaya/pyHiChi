@@ -1,10 +1,14 @@
 #pragma once
+
 #include <memory>
+#include <typeinfo>
+#include <iostream>
 #include "Grid.h"
 #include "AnalyticalField.h"
 #include "FieldValue.h"
 #include "Mapping.h"
 #include "Fdtd.h"
+#include "Particle.h"
 #include "Psatd.h"
 #include "Pstd.h"
 #include "Mapping.h"
@@ -1031,4 +1035,111 @@ OMP_SIMD()
         std::shared_ptr<pyFieldBase> pyWrappedField;
     };
 
+
+    template<class TGrid, class TFieldSolver>
+    class pyParticleFieldInterface {
+    public:
+        pyParticleFieldInterface(pyField<TGrid, TFieldSolver>* _field) {
+            field = _field;
+        }
+
+    protected:
+        pyField<TGrid, TFieldSolver>* field;
+    };
+
+
+    template<class TGrid, class TFieldSolver>
+    class pyParticleGenerator: public ParticleGenerator, public pyParticleFieldInterface<TGrid, TFieldSolver> {
+
+    public:
+        typedef FP WeightType;
+        typedef ParticleTypes TypeIndexType;
+
+        pyParticleGenerator(pyField<TGrid, TFieldSolver>* _field): ParticleGenerator(), pyParticleFieldInterface(_field) {}
+
+        template <class TParticleArray>
+        void operator()(TParticleArray* particleArray,
+            int64_t particleDensity,
+            int64_t initialTemperature,
+            FP init_mx, FP init_my, FP inti_mz,
+            WeightType weight = 1.0,
+            TypeIndexType typeIndex = ParticleTypes::Electron)
+        {
+            ParticleGenerator::operator()(particleArray, static_cast<TGrid*>(field->getFieldEntity()), (FP(*)(FP, FP, FP))particleDensity,
+                (FP(*)(FP, FP, FP))initialTemperature, [](FP init_mx, FP init_my, FP init_mz) -> FP3 {return FP3(init_mx, init_my, init_mz); }, weight, typeIndex);
+        }
+    };
+
+    template<class TGrid, class TFieldSolver>
+    class pyFirstOrderCurrentDeposition: public FirstOrderCurrentDeposition<TGrid>, public pyParticleFieldInterface<TGrid, TFieldSolver> {
+    public:
+        pyFirstOrderCurrentDeposition(pyField<TGrid, TFieldSolver>* _field): FirstOrderCurrentDeposition(), pyParticleFieldInterface(_field) {}
+
+        template<class TParticleArray>
+        void operator()(TParticleArray* particleArray, double dt) {
+            FirstOrderCurrentDeposition<TGrid>::operator()(static_cast<TGrid*>(field->getFieldEntity()), particleArray, dt);
+        }
+
+        FP3 getJ(const Int3& idx) {
+            return field->getFieldEntity()->getJ(idx);
+        }
+    };
+
+    template<class TGrid, class TFieldSolver>
+    class pyPeriodicalParticleBoundaryConditions : public PeriodicalParticleBoundaryConditions, public pyParticleFieldInterface<TGrid, TFieldSolver> {
+    public:
+        pyPeriodicalParticleBoundaryConditions(pyField<TGrid, TFieldSolver>* _field): PeriodicalParticleBoundaryConditions(), pyParticleFieldInterface(_field) {}
+
+        template<class TParticleArray>
+        void update(TParticleArray* particleArray) {
+            std::cout << typeid(static_cast<TGrid*>(field->getFieldEntity())).name() << std::endl;
+            PeriodicalParticleBoundaryConditions::updateParticlePosition(static_cast<TGrid*>(field->getFieldEntity()), particleArray);
+        }
+
+    };
+
+    template<class TGrid, class TFieldSolver>
+    class pyInterpolation: public pyParticleFieldInterface<TGrid, TFieldSolver> {
+    public:
+        pyInterpolation(pyField<TGrid, TFieldSolver>* _field): pyParticleFieldInterface(_field) {}
+
+        FP getExCIC(const FP3& coords) {
+            return field->getFieldEntity()->getExCIC(coords);
+        }
+        FP getEyCIC(const FP3& coords) {
+            return field->getFieldEntity()->getEyCIC(coords);
+        }
+        FP getEzCIC(const FP3& coords) {
+            return field->getFieldEntity()->getEzCIC(coords);
+        }
+        FP getBxCIC(const FP3& coords) {
+            return field->getFieldEntity()->getBxCIC(coords);
+        }
+        FP getByCIC(const FP3& coords) {
+            return field->getFieldEntity()->getByCIC(coords);
+        }
+        FP getBzCIC(const FP3& coords) {
+            return field->getFieldEntity()->getBzCIC(coords);
+        }
+        FP getJxCIC(const FP3& coords) {
+            return field->getFieldEntity()->getJxCIC(coords);
+        }
+        FP getJyCIC(const FP3& coords) {
+            return field->getFieldEntity()->getJyCIC(coords);
+        }
+        FP getJzCIC(const FP3& coords) {
+            return field->getFieldEntity()->getJzCIC(coords);
+        }
+    };
+
+
+    template<class TGrid, class TFieldSolver, GridTypes gridType>
+    class pyPeriodicalCurrentBC : public PeriodicalCurrentBoundaryConditions<gridType> {
+    public:
+        pyPeriodicalCurrentBC(pyField<TGrid, TFieldSolver>* _field): PeriodicalCurrentBoundaryConditions(static_cast<RealFieldSolver<gridType>*>(_field->getFieldEntity())) {}
+        void update() {
+            this->fieldSolver->updateDims();
+            PeriodicalCurrentBoundaryConditions::updateCurrentBoundaries();
+        }
+    };
 }

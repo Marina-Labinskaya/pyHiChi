@@ -7,7 +7,7 @@
 
 namespace pfc 
 {
-    template<GridTypes gridType, class DerivedClass>
+    template<class TGrid, class DerivedClass>
     class CurrentDeposition
     {
     public:
@@ -16,33 +16,34 @@ namespace pfc
         };
 
         template<class T_Particle>
-        void operator()(Grid<FP, gridType>* grid, const T_Particle& particle,
+        void operator()(TGrid* grid, const T_Particle& particle, double dt,
             CurrentDeposition::ZeroizeJ UsingZeroizeJ = CurrentDeposition::ZeroizeJ::NOT_USE_ZEROIZEJ) {
             if (UsingZeroizeJ == ZeroizeJ::USE_ZEROIZEJ)
                 grid->zeroizeJ();
-            static_cast<DerivedClass*>(this)->depositOneParticle(grid, &particle);
+            static_cast<DerivedClass*>(this)->depositOneParticle(grid, &particle, dt);
         }
-
+        
         template<class T_ParticleArray>
-        void operator()(Grid<FP, gridType>* grid, T_ParticleArray* particleArray) {
+        void operator()(TGrid* grid, T_ParticleArray* particleArray, double dt) {
             typedef typename T_ParticleArray::ParticleProxyType ParticleProxyType;
 
             grid->zeroizeJ();
 
             for (int i = 0; i < particleArray->size(); i++) {
                 ParticleProxyType particle = (*particleArray)[i];
-                static_cast<DerivedClass*>(this)->depositOneParticle(grid, &particle);
+                static_cast<DerivedClass*>(this)->depositOneParticle(grid, &particle, dt);
             }
         }
 
+
         template<class T_Particle>
-        void depositOneParticle(Grid<FP, gridType>* grid, T_Particle* particle) {
+        void depositOneParticle(TGrid* grid, T_Particle* particle, double dt) {
             static_assert(false, "ERROR: CurrentDeposition::depositOnePaticle shouldn't be called");
         }
     };
 
-    template<GridTypes gridType>
-    class FirstOrderCurrentDeposition : public CurrentDeposition<gridType, FirstOrderCurrentDeposition<gridType>>
+    template<class TGrid>
+    class FirstOrderCurrentDeposition : public CurrentDeposition<TGrid, FirstOrderCurrentDeposition<TGrid>>
     {
     public:
 
@@ -60,11 +61,11 @@ namespace pfc
         }
 
         template<class T_Particle>
-        void depositOneParticle(Grid<FP, gridType>* grid, T_Particle* particle)
+        void depositOneParticle(TGrid* grid, T_Particle* particle, double dt)
         {
             Int3 idxJx, idxJy, idxJz;
             FP3 internalCoordsJx, internalCoordsJy, internalCoordsJz;
-            FP3 particlePosition = particle->getPosition();
+            FP3 particlePosition = particle->getPosition(); // - (particle->getVelocity() * dt / 2.0);
 
             FP3 current = (particle->getVelocity() * particle->getCharge() * particle->getWeight()) /
                 grid->steps.volume();
@@ -79,5 +80,5 @@ namespace pfc
         }
     };
     
-    typedef FirstOrderCurrentDeposition<YeeGridType> FirstOrderCurrentDepositionYee;
+    typedef FirstOrderCurrentDeposition<YeeGrid> FirstOrderCurrentDepositionYee;
 }

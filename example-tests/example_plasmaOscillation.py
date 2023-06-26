@@ -4,9 +4,10 @@ import pyHiChi as hichi
 
 import numpy as np
 import math as ma
+import numba
+from numba import cfunc, types, carray
 
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 
 nx = 64
 ny = 8
@@ -16,8 +17,8 @@ dx = L / nx
 dy = dx
 dz = dx
 Nip = 256
-Np = 2
-N = Nip * Np
+Np = 14
+N = int(Nip * Np)
 T0 = 0.01 * hichi.ELECTRON_MASS * hichi.c * hichi.c
 D = T0 / (8 * hichi.pi * hichi.ELECTRON_CHARGE * hichi.ELECTRON_CHARGE * 0.25 * dx * dx)
 wp = ma.sqrt(4.0 * hichi.pi * hichi.ELECTRON_CHARGE * hichi.ELECTRON_CHARGE * D / hichi.ELECTRON_MASS)
@@ -60,6 +61,7 @@ def valueBz(x, y, z):
     Bz = 0
     return Bz
 
+@cfunc("double(double,double,double)")
 def DensityFunc(x, y, z):
     T0 = 0.01 * hichi.ELECTRON_MASS * hichi.c * hichi.c
     L = 1.0
@@ -67,108 +69,121 @@ def DensityFunc(x, y, z):
     D = T0 / (8 * hichi.pi * hichi.ELECTRON_CHARGE * hichi.ELECTRON_CHARGE * 0.25 * dx * dx)
     return D * (1 + 0.05 * ma.sin(2 * hichi.pi * x / L))
 
+
+@cfunc("double(double,double,double)")
 def InitialTemperatureFunc(x, y, z):
     T0 = 0.01 * hichi.ELECTRON_MASS * hichi.c * hichi.c
     return T0
-
-def InitialMomentumFunc(x, y, z):
-    return hichi.Vector3d(0.0, 0.0, 0.0)
-
-# def ExArray(i, Ex):
-#     if i % 16 == 0:
-#         res = []
-#         for j in range(nx):
-#             #idx = hichi.Vector3d(0, 0, 0)
-#             #internalCoords = hichi.Vector3d(0.0, 0.0, 0.0)
-#             res.append(Ex)
-#     return res
 
 def get_fields():
     global field, x, nx
     #print(field)
     Ex = np.zeros(shape=(nx))
-    Ey = np.zeros(shape=(nx))
-    Ez = np.zeros(shape=(nx))
-    Bx = np.zeros(shape=(nx))
-    By = np.zeros(shape=(nx))
-    Bz = np.zeros(shape=(nx))
     for ix in range(nx):
         coord_x = hichi.Vector3d(x[ix], 0.0, 0.0)
         E = field.get_E(coord_x)
         Ex[ix] = E.x
-        Ey[ix] = E.y
-        Ez[ix] = E.z
-        B = field.get_B(coord_x)
-        Bx[ix] = B.x
-        By[ix] = B.y
-        Bz[ix] = B.z
-    return Ex, Ey, Ez, Bx, By, Bz
+    return Ex
 
-# def update_data():
-#     for i in range(1000):
-#         field.update_fields()
+def get_particle_density(particleArray):
+    res = []
+    for k in range(nx):
+        electronCount = 0
+        minCellCoords = min_coords.x + k * dx
+        #print("minCoords= ", minCellCoords)
+        maxCellCoords = min_coords.x + (k + 1) * dx
+
+        for j in range(particleArray.size()):
+            #print("x= ",particleArray[j].get_position().x)
+            if (particleArray[j].get_position().x >= minCellCoords) and (particleArray[j].get_position().x <= maxCellCoords):
+                electronCount = electronCount + 1
+                #print("count= ",electronCount)
+            electronDensity = electronCount * w  # density through plane
+        res.append(electronDensity)
+        #print(electronDensity)
+    return res
+
 
 field.set_E(valueEx, valueEy, valueEz)
 field.set_B(valueBx, valueBy, valueBz)
 field.set_periodical_BC()
 
 pusher = hichi.BorisPusher()
-currentDeposition = hichi.FirstOrderCurrentDepositionYee()
+currentDeposition = hichi.DepositionCIC(field)
 
-J_BC = hichi.periodical_J_BC()
-particle_BC = hichi.periodical_particle_BC()
+J_BC = hichi.periodical_J_BC(field)
+particle_BC = hichi.periodical_particle_BC(field)
 
 p_array = hichi.ParticleArray()
 
-particle_generator = hichi.ParticleGenerator()
-particle_generator(p_array, field, DensityFunc, InitialTemperatureFunc, InitialMomentumFunc, w, hichi.ELECTRON) # field != Grid*
+particle_generator = hichi.ParticleGenerator(field)
+particle_generator(p_array, DensityFunc.address, InitialTemperatureFunc.address, numba.f4(0.0), numba.f4(0.0), numba.f4(0.0), numba.f4(w), hichi.ELECTRON)
+interpolation = hichi.InterpolationCIC(field)
 
+fig = plt.figure()
+def plotEx(field, index, title):
+    ax = fig.add_subplot(1,2,index)
+    ax.plot(x, get_fields())
+    ax.set_ylabel("$E_x$")
+    ax.set_xlim((min_coords.x, L))
+    ax.set_xlabel("$x$")
+    ax.grid()
+    
+    ax.set_title(title)
+
+def plotParticleDens(particleArray, index, title):
+    ax = fig.add_subplot(1,2,index)
+    ax.plot(x, get_particle_density(particleArray))
+    ax.set_ylabel("$Particle Density$")
+    ax.set_xlim((min_coords.x, L))
+    ax.set_xlabel("$x$")
+    ax.grid()
+    
+    ax.set_title(title)
+
+nShow = 0
+
+N = 0
 for i in range (N + 1):
-    (Ex, Ey, Ez, Bx, By, Bz) = get_fields()
+    # if i == nShow:
+    #     plotEx(field, 1, "E_x")
+    #     #print(get_particle_density(p_array))
+    #     plotParticleDens(p_array, 2, "Particle Density")
+
+    (Ex) = get_fields()
     # fdtd
     field.update_fields()
+
     # interpolate
     fields = []
     for j in range(p_array.size()):
-        E = hichi.Vector3d()
-        B = hichi.Vector3d()
-        #field.getFieldsCIC(particleArray[i].getPosition(), E, B) ?
+        coords = hichi.Vector3d(p_array[j].get_position().x, p_array[j].get_position().y, p_array[j].get_position().z)
+        E_x = interpolation.getExCIC(coords)
+        E_y = interpolation.getEyCIC(coords)
+        E_z = interpolation.getEzCIC(coords)
+        E = hichi.Vector3d(E_x, E_y, E_z)
+        B_x = interpolation.getBxCIC(coords)
+        B_y = interpolation.getByCIC(coords)
+        B_z = interpolation.getBzCIC(coords)
+        B = hichi.Vector3d(B_x, B_y, B_z)
         fields.append(hichi.FieldValue(E, B))
+
     # pusher
     pusher(p_array, fields, dt)
     # periodical particle BC
-    particle_BC.updateParticlePosition(field, p_array, dt)
+    particle_BC.update(p_array)
+
+    # if i == 0:
+    #     plotEx(field, 1, "E_x")
+    #     #print(get_particle_density(p_array))
+    #     plotParticleDens(p_array, 2, "Particle Density")
     # current deposition
-    # fdtd.updateDims() ?
-    currentDeposition(field, p_array) # field != Grid*
-    J_BC.updateCurrentBondaries()
+    currentDeposition(p_array, dt)
+    J_BC.update()
 
     
 
+    print(i)
 
-# for (int i = 0; i <= N; ++i) {
-#     if (i % 16 == 0)
-#         for (int j = 0; j < grid.numInternalCells.x; ++j) {
-#             Int3 idx; FP3 internalCoords;
-#             fout << i << " " << minCoords.x + j * grid.steps.x << " " << grid.Ex(j + grid.getNumExternalLeftCells().x, grid.getNumExternalLeftCells().y, grid.getNumExternalLeftCells().z) << std::endl;
-#             //fout << i << " " << minCoords.x + j * grid.steps.x << " " << grid.Ex(j, grid.getNumExternalLeftCells().y, grid.getNumExternalLeftCells().z) << std::endl;
-#         };
-#     if (i % 16 == 0) {
-#         for (int k = 0; k < grid.numInternalCells.x; ++k) {
-#             int electronCount = 0;
-#             FP minCellCoords = minCoords.x + k * grid.steps.x;
-#             FP maxCellCoords = minCoords.x + (k + 1) * grid.steps.x;
-#             //FP minCellCoords = grid.origin.x + k * grid.steps.x;
-#             //FP maxCellCoords = grid.origin.x + (k + 1) * grid.steps.x;
-
-#             for (int j = 0; j < particleArray.size(); ++j) {
-#                 if ((particleArray[j].getPosition().x >= minCellCoords) && (particleArray[j].getPosition().x <= maxCellCoords))
-#                     electronCount++;
-#             }
-#             // to sinchronize the output with Picador
-#             FP electronDensity = electronCount * w;  // density through plane
-#             if (i % 16 == 0)
-#                 fout2 << i << " " << minCellCoords << " " << electronDensity << std::endl;
-#         }
-#     }
-# }
+plt.tight_layout()
+plt.show()

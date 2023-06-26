@@ -10,17 +10,17 @@ namespace pfc {
     class ParticleBoundaryConditions {
     public:
         template <class T_ParticleArray, GridTypes gridType>
-        void updateParticlePosition(Grid<FP, gridType> * grid, T_ParticleArray* particleArray, double dt) {};
+        void updateParticlePosition(Grid<FP, gridType> * grid, T_ParticleArray* particleArray) {};
     };
 
     class PeriodicalParticleBoundaryConditions : ParticleBoundaryConditions {
     public:
         template <class T_ParticleArray, GridTypes gridType>
-        void updateParticlePosition(Grid<FP, gridType> * grid, T_ParticleArray* particleArray, double dt);
+        void updateParticlePosition(Grid<FP, gridType> * grid, T_ParticleArray* particleArray);
     };
 
     template<class T_ParticleArray, GridTypes gridType>
-    void PeriodicalParticleBoundaryConditions::updateParticlePosition(Grid<FP, gridType> * grid, T_ParticleArray* particleArray, double dt)
+    void PeriodicalParticleBoundaryConditions::updateParticlePosition(Grid<FP, gridType> * grid, T_ParticleArray* particleArray)
     {
         typedef typename T_ParticleArray::ParticleProxyType ParticleProxyType;
         typedef typename VectorTypeHelper<Dimension::Three, Real>::Type PositionType;
@@ -48,8 +48,6 @@ namespace pfc {
                 newParticlePosition.z = minCoords.z + (particlePosition.z - maxCoords.z);
 
             particle.setPosition(newParticlePosition);
-            //std::cout << "i = " << i << ", particle position changed: old is " << particlePosition << std::endl;
-            //std::cout <<"i = " << i << ", particle position changed: new is " << particle.getPosition() << std::endl;
         }
     }
 }
