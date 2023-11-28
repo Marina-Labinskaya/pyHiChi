@@ -45,7 +45,6 @@ namespace pfc {
     class FormFactor {
     public:
         void operator()(T_FP coords) {};
-
     };
 
     template<pfc::Dimension dimension, class T_FP>
@@ -53,9 +52,8 @@ namespace pfc {
     public:
         void operator()(T_FP coords) {
             for (int i = 0; i < dimension; ++i) {
-                for (int j = 0; j < 2; ++j) {
-                    c[i][j] = 1;
-                }
+                c[i][0] = (FP)1 - coords[i];
+                c[i][1] = coords[i];
             }
         }
     public:

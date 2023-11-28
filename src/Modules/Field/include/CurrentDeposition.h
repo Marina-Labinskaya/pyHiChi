@@ -52,22 +52,22 @@ namespace pfc
         void depositComponentCurrent(ScalarField<FP> & field, const Int3 & idx,
             const FP3 & internalCoords, const FP & fieldBeforeDeposition, FormFactorCIC<Dimension::Three, FP3>& formFactor)
         {
-            field(idx.x, idx.y, idx.z) += formFactor.c[0][0] * formFactor.c[1][0] * formFactor.c[2][0] *
-                ((FP)1 - internalCoords.x) * ((FP)1 - internalCoords.y) * ((FP)1 - internalCoords.z) * fieldBeforeDeposition;
-            field(idx.x + 1, idx.y, idx.z) += formFactor.c[0][1] * formFactor.c[1][0] * formFactor.c[2][0] *
-                internalCoords.x * ((FP)1 - internalCoords.y) * ((FP)1 - internalCoords.z) * fieldBeforeDeposition;
-            field(idx.x, idx.y + 1, idx.z) += formFactor.c[0][0] * formFactor.c[1][1] * formFactor.c[2][0] *
-                ((FP)1 - internalCoords.x) * internalCoords.y * ((FP)1 - internalCoords.z) * fieldBeforeDeposition;
-            field(idx.x, idx.y, idx.z + 1) += formFactor.c[0][0] * formFactor.c[1][0] * formFactor.c[2][1] *
-                ((FP)1 - internalCoords.x) * ((FP)1 - internalCoords.y) * internalCoords.z * fieldBeforeDeposition;
-            field(idx.x + 1, idx.y + 1, idx.z) += formFactor.c[0][1] * formFactor.c[1][1] * formFactor.c[2][0] *
-                internalCoords.x * internalCoords.y * ((FP)1 - internalCoords.z) * fieldBeforeDeposition;
-            field(idx.x + 1, idx.y, idx.z + 1) += formFactor.c[0][1] * formFactor.c[1][0] * formFactor.c[2][1] *
-                internalCoords.x * ((FP)1 - internalCoords.y) * internalCoords.z * fieldBeforeDeposition;
-            field(idx.x, idx.y + 1, idx.z + 1) += formFactor.c[0][0] * formFactor.c[1][1] * formFactor.c[2][1] *
-                ((FP)1 - internalCoords.x) * internalCoords.y * internalCoords.z * fieldBeforeDeposition;
-            field(idx.x + 1, idx.y + 1, idx.z + 1) += formFactor.c[0][1] * formFactor.c[1][1] * formFactor.c[2][1] *
-                internalCoords.x * internalCoords.y * internalCoords.z * fieldBeforeDeposition;
+            field(idx.x, idx.y, idx.z) += formFactor.c[0][0] * formFactor.c[1][0] * formFactor.c[2][0]
+                * fieldBeforeDeposition;
+            field(idx.x + 1, idx.y, idx.z) += formFactor.c[0][1] * formFactor.c[1][0] * formFactor.c[2][0]
+                * fieldBeforeDeposition;
+            field(idx.x, idx.y + 1, idx.z) += formFactor.c[0][0] * formFactor.c[1][1] * formFactor.c[2][0]
+                * fieldBeforeDeposition;
+            field(idx.x, idx.y, idx.z + 1) += formFactor.c[0][0] * formFactor.c[1][0] * formFactor.c[2][1]
+                * fieldBeforeDeposition;
+            field(idx.x + 1, idx.y + 1, idx.z) += formFactor.c[0][1] * formFactor.c[1][1] * formFactor.c[2][0]
+                * fieldBeforeDeposition;
+            field(idx.x + 1, idx.y, idx.z + 1) += formFactor.c[0][1] * formFactor.c[1][0] * formFactor.c[2][1]
+                * fieldBeforeDeposition;
+            field(idx.x, idx.y + 1, idx.z + 1) += formFactor.c[0][0] * formFactor.c[1][1] * formFactor.c[2][1]
+                * fieldBeforeDeposition;
+            field(idx.x + 1, idx.y + 1, idx.z + 1) += formFactor.c[0][1] * formFactor.c[1][1] * formFactor.c[2][1]
+                * fieldBeforeDeposition;
         }
 
         template<class T_Particle>
@@ -86,8 +86,10 @@ namespace pfc
 
             formFactor(internalCoordsJx);
             depositComponentCurrent(grid->Jx, idxJx, internalCoordsJx, current.x, formFactor);
+
             formFactor(internalCoordsJy);
             depositComponentCurrent(grid->Jy, idxJy, internalCoordsJy, current.y, formFactor);
+
             formFactor(internalCoordsJz);
             depositComponentCurrent(grid->Jz, idxJz, internalCoordsJz, current.z, formFactor);
         }
