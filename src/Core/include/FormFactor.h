@@ -2,6 +2,7 @@
 #include <cmath>
 
 #include "FP.h"
+#include "Dimension.h"
 
 namespace pfc {
     inline FP formfactorTSC(FP x)
@@ -39,4 +40,39 @@ namespace pfc {
         c[3] = -(coeff + (FP)2) * (coeff + (FP)1) * coeff * (coeff - (FP)2) / (FP)6;
         c[4] = (coeff + (FP)2) * (coeff + (FP)1) * coeff * (coeff - (FP)1) / (FP)24;
     }
+
+    template<pfc::Dimension dimension, class T_FP>
+    class FormFactor {
+    public:
+        void operator()(T_FP coords) {};
+
+    };
+
+    template<pfc::Dimension dimension, class T_FP>
+    class FormFactorCIC : public FormFactor<dimension, T_FP> {
+    public:
+        void operator()(T_FP coords) {
+            for (int i = 0; i < dimension; ++i) {
+                for (int j = 0; j < 2; ++j) {
+                    c[i][j] = 1;
+                }
+            }
+        }
+    public:
+        FP c[dimension][2];
+    };
+
+    template<pfc::Dimension dimension, class T_FP>
+    class FormFactorTSC : public FormFactor<dimension, T_FP> {
+    public:
+        void operator()(T_FP coords) {
+            for (int i = 0; i < dimension; ++i) {
+                for (int j = 0; j < 3; ++j) {
+                    c[i][j] = formfactorTSC(FP(j - 1) - coords[i]);
+                }
+            }
+        }
+    public:
+        FP c[dimension][3];
+    };
 }
