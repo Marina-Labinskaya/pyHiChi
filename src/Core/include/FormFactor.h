@@ -2,7 +2,7 @@
 #include <cmath>
 
 #include "FP.h"
-#include "Dimension.h"
+#include "Vectors.h"
 
 namespace pfc {
     inline FP formfactorTSC(FP x)
@@ -41,36 +41,33 @@ namespace pfc {
         c[4] = (coeff + (FP)2) * (coeff + (FP)1) * coeff * (coeff - (FP)1) / (FP)24;
     }
 
-    template<pfc::Dimension dimension, class T_FP>
     class FormFactor {
     public:
-        void operator()(T_FP coords) {};
+        void operator()(FP3 coords) {};
     };
 
-    template<pfc::Dimension dimension, class T_FP>
-    class FormFactorCIC : public FormFactor<dimension, T_FP> {
+    class FormFactorCIC : public FormFactor {
     public:
-        void operator()(T_FP coords) {
-            for (int i = 0; i < dimension; ++i) {
+        void operator()(FP3 coords) {
+            for (int i = 0; i < 3; ++i) {
                 c[i][0] = (FP)1 - coords[i];
                 c[i][1] = coords[i];
             }
         }
-    public:
-        FP c[dimension][2];
+
+        FP c[3][2];
     };
 
-    template<pfc::Dimension dimension, class T_FP>
-    class FormFactorTSC : public FormFactor<dimension, T_FP> {
+    class FormFactorTSC : public FormFactor {
     public:
-        void operator()(T_FP coords) {
-            for (int i = 0; i < dimension; ++i) {
+        void operator()(FP3 coords) {
+            for (int i = 0; i < 3; ++i) {
                 for (int j = 0; j < 3; ++j) {
                     c[i][j] = formfactorTSC(FP(j - 1) - coords[i]);
                 }
             }
         }
-    public:
-        FP c[dimension][3];
+
+        FP c[3][3];
     };
 }
