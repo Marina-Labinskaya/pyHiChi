@@ -235,27 +235,221 @@ static FP3 testCurrentDepositionTestPlasmaOscillationTestInitialMomentumFunc(FP 
     return FP3(0.0, 0.0, 0.0);
 }
 
-TEST(CurrentDepositionTest, PlasmaOscillationTest) {
-    int nx = 64, ny = 8, nz = 8;
+//TEST(CurrentDepositionTest, PlasmaOscillationTest) {
+//    int nx = 64, ny = 8, nz = 8;
+//    FP L = 1.0;
+//    FP dx = L / nx, dy = dx, dz = dx;
+//    int Nip = 256;
+//    int Np = 30;// nx / (std::sqrt(2) * constants::pi);  // number of periods
+//    int N = Nip * Np;
+//    FP T0 = 0.01 * constants::electronMass * constants::c * constants::c;
+//    FP D = T0 / (8 * constants::pi * constants::electronCharge * constants::electronCharge * 0.25 * dx * dx);
+//    FP wp = sqrt(4.0 * constants::pi * constants::electronCharge * constants::electronCharge * D
+//        / constants::electronMass);
+//    FP dt = 2 * (constants::pi / wp) / Nip;
+//    FP Nc = 30;
+//    Particle3d::WeightType w = D * dx * dx * dx / Nc;
+//    FP A = 0.05;
+//    FP3 p0 = FP3(0.0, 0.0, 0.0);
+//
+//    BorisPusher scalarPusher;
+//
+//    CurrentDepositionTSC<YeeGrid> currentDeposition(dt);
+//
+//    Int3 numInternalCells = Int3(nx, ny, nz);
+//    FP3 minCoords = FP3(0.0, 0.0, 0.0);
+//    FP3 steps = FP3(dx, dy, dz);
+//    Int3 globalGridDims = numInternalCells;
+//
+//    YeeGrid grid(numInternalCells, minCoords, steps, globalGridDims);
+//
+//    for (int i = 0; i < grid.numCells.x; ++i)
+//        for (int j = 0; j < grid.numCells.y; ++j)
+//            for (int k = 0; k < grid.numCells.z; ++k) {
+//                grid.Ex(i, j, k) = -2 * L * D * A * constants::electronCharge 
+//                    * std::cos(2 * constants::pi * grid.ExPosition(i, j, k).x / L);
+//                grid.Ey(i, j, k) = 0.0;
+//                grid.Ez(i, j, k) = 0.0;
+//                grid.Bx(i, j, k) = 0.0;
+//                grid.By(i, j, k) = 0.0;
+//                grid.Bz(i, j, k) = 0.0;
+//            }
+//
+//    ParticleArray3d particleArray;
+//
+//    PeriodicalParticleBoundaryConditions particleSolver;
+//    FDTD fdtd(&grid, dt);
+//    PeriodicalCurrentBoundaryConditions<YeeGridType> periodicalCurrentBoundary(&fdtd);
+//    PeriodicalFieldGeneratorYee generator(&fdtd);
+//    fdtd.setFieldGenerator(&generator);
+//
+//    ParticleGenerator particleGenerator;
+//    particleGenerator(&particleArray, &grid,
+//        testCurrentDepositionTestPlasmaOscillationTestParticleDensityFunc,
+//        testCurrentDepositionTestPlasmaOscillationTestInitialTemperatureFunc,
+//        testCurrentDepositionTestPlasmaOscillationTestInitialMomentumFunc,
+//        w, ParticleTypes::Electron
+//    );
+//    std::cout << "n= " << particleArray.size() << std::endl;
+//
+//    std::ofstream fout("OscillationTestEx.txt");
+//    std::ofstream fout2("OscillationTestElectronDensity.txt");
+//    std::ofstream fout_energy("FieldEnergy.txt");
+//
+//    double current_time = 0.0;
+//    double fdtd_time = 0.0;
+//    double interpolate_time = 0.0;
+//    double pusher_time = 0.0;
+//
+//    //-------------------------------------------initial-field-energy--------------------------------------------------
+//    double energy = 0.0;
+//    for (int i = grid.getNumExternalLeftCells().x; i < grid.numCells.x - grid.getNumExternalLeftCells().x; i++)
+//        for (int j = grid.getNumExternalLeftCells().y; j < grid.numCells.y - grid.getNumExternalLeftCells().y; j++)
+//            for (int k = grid.getNumExternalLeftCells().z; k < grid.numCells.z - grid.getNumExternalLeftCells().z; k++) {
+//                energy += grid.Ex(i, j, k) * grid.Ex(i, j, k);
+//                energy += grid.Ey(i, j, k) * grid.Ey(i, j, k);
+//                energy += grid.Ez(i, j, k) * grid.Ez(i, j, k);
+//                energy += grid.Bx(i, j, k) * grid.Bx(i, j, k);
+//                energy += grid.By(i, j, k) * grid.By(i, j, k);
+//                energy += grid.Bz(i, j, k) * grid.Bz(i, j, k);
+//            }
+//    energy = energy * dx * dy * dz * 1e-7 / ((FP)8 * constants::pi);
+//    for (int i = 0; i < particleArray.size(); i++) {
+//        double constant_particle = 1000.0 * 100.0;
+//        energy += particleArray[i].getMass() * std::sqrt(particleArray[i].getVelocity().x * particleArray[i].getVelocity().x +
+//            particleArray[i].getVelocity().y * particleArray[i].getVelocity().y + particleArray[i].getVelocity().z * particleArray[i].getVelocity().z) / 2.0 * constant_particle;
+//    }
+//    std::cout << "in start: " << energy << std::endl;
+//
+//    for (int i = 0; i < N; ++i) {
+//        if (i % 16 == 0) {
+//            //-------------------------------current-energy--------------------------------------------------------------
+//            energy = 0.0;
+//            for (int i = grid.getNumExternalLeftCells().x; i < grid.numCells.x - grid.getNumExternalLeftCells().x; i++)
+//                for (int j = grid.getNumExternalLeftCells().y; j < grid.numCells.y - grid.getNumExternalLeftCells().y; j++)
+//                    for (int k = grid.getNumExternalLeftCells().z; k < grid.numCells.z - grid.getNumExternalLeftCells().z; k++) {
+//                        energy += grid.Ex(i, j, k) * grid.Ex(i, j, k);
+//                        energy += grid.Ey(i, j, k) * grid.Ey(i, j, k);
+//                        energy += grid.Ez(i, j, k) * grid.Ez(i, j, k);
+//                        energy += grid.Bx(i, j, k) * grid.Bx(i, j, k);
+//                        energy += grid.By(i, j, k) * grid.By(i, j, k);
+//                        energy += grid.Bz(i, j, k) * grid.Bz(i, j, k);
+//                    }
+//            energy = energy * dx * dy * dz * 1e-7 / ((FP)8 * constants::pi);
+//            fout_energy << i << " " << energy << std::endl;
+//            for (int j = 0; j < grid.numInternalCells.x; ++j) {
+//                Int3 idx; FP3 internalCoords;
+//                fout << i << " " << minCoords.x + j * grid.steps.x << " " << grid.Ex(j
+//                    + grid.getNumExternalLeftCells().x, grid.getNumExternalLeftCells().y,
+//                    grid.getNumExternalLeftCells().z) << std::endl;                
+//            }
+//
+//            for (int k = 0; k < grid.numInternalCells.x; ++k) {
+//                int electronCount = 0;
+//                FP minCellCoords = minCoords.x + k * grid.steps.x;
+//                FP maxCellCoords = minCoords.x + (k + 1) * grid.steps.x;
+//
+//                for (int j = 0; j < particleArray.size(); ++j) {
+//                    if ((particleArray[j].getPosition().x >= minCellCoords)
+//                        && (particleArray[j].getPosition().x <= maxCellCoords))
+//                        electronCount++;
+//                }
+//                // to sinchronize the output with Picador
+//                FP electronDensity = electronCount * w;  // density through plane
+//                fout2 << i << " " << minCellCoords << " " << electronDensity << std::endl;
+//            }
+//        }
+//
+//        auto fdtd_start = chrono::steady_clock::now();
+//
+//        //fdtd
+//        fdtd.updateFields();
+//
+//        auto fdtd_end = chrono::steady_clock::now();
+//        double fdtd_local_time = (chrono::duration_cast<chrono::nanoseconds>(fdtd_end - fdtd_start).count()) / 1e9;
+//        fdtd_time += fdtd_local_time;
+//
+//        auto interpolate_start = chrono::steady_clock::now();
+//        //interpolate
+//        std::vector<ValueField> fields;
+//        for (int i = 0; i < particleArray.size(); i++) {
+//            FP3 E, B;
+//            grid.getFieldsTSC(particleArray[i].getPosition(), E, B);
+//            fields.push_back(ValueField(E, B));
+//        }
+//
+//        auto interpolate_end = chrono::steady_clock::now();
+//        double interpolate_local_time = (chrono::duration_cast<chrono::nanoseconds>(interpolate_end 
+//            - interpolate_start).count()) / 1e9;
+//        interpolate_time += interpolate_local_time;
+//
+//        auto pusher_start = chrono::steady_clock::now();
+//        //pusher
+//        scalarPusher(&particleArray, fields, dt);
+//
+//        auto pusher_end = chrono::steady_clock::now();
+//        double pusher_local_time = (chrono::duration_cast<chrono::nanoseconds>(pusher_end 
+//            - pusher_start).count()) / 1e9;
+//        pusher_time += pusher_local_time;
+//
+//        //periodical particle position
+//        particleSolver.updateParticlePosition(&grid, &particleArray);
+//        // current deposition
+//        fdtd.updateDims();
+//
+//        auto start = chrono::steady_clock::now();
+//        currentDeposition(&grid, &particleArray);
+//        auto end = chrono::steady_clock::now();
+//        double current_local_time = (chrono::duration_cast<chrono::nanoseconds>(end - start).count()) / 1e9;
+//        current_time += current_local_time;
+//        periodicalCurrentBoundary.updateCurrentBoundaries();
+//
+//    }
+//    fout.close();
+//    fout2.close();
+//
+//    //-------------------------final-energy------------------------------------
+//    energy = 0.0;
+//    for (int i = grid.numInternalCells.x; i < grid.numCells.x; i++)
+//        for (int j = grid.numInternalCells.y; j < grid.numCells.y; j++)
+//            for (int k = grid.numInternalCells.z; k < grid.numCells.z; k++) {
+//                energy += grid.Ex(i, j, k) * grid.Ex(i, j, k);
+//                energy += grid.Ey(i, j, k) * grid.Ey(i, j, k);
+//                energy += grid.Ez(i, j, k) * grid.Ez(i, j, k);
+//                energy += grid.Bx(i, j, k) * grid.Bx(i, j, k);
+//                energy += grid.By(i, j, k) * grid.By(i, j, k);
+//                energy += grid.Bz(i, j, k) * grid.Bz(i, j, k);
+//            }
+//    energy = energy * dx * dy * dz * 1e-7 / ((FP)8 * constants::pi);
+//    for (int i = 0; i < particleArray.size(); i++) {
+//        double constant_particle = 1000.0 * 100.0;
+//        energy += particleArray[i].getMass() * std::sqrt(particleArray[i].getVelocity().x 
+//            * particleArray[i].getVelocity().x + particleArray[i].getVelocity().y 
+//            * particleArray[i].getVelocity().y + particleArray[i].getVelocity().z 
+//            * particleArray[i].getVelocity().z) / 2.0 * constant_particle;
+//    }
+//    std::cout << "in end: " << energy << std::endl;
+//
+//    std::cout << "fdtd time= " << fdtd_time << std::endl;
+//    std::cout << "interpolate_time= " << interpolate_time << std::endl;
+//    std::cout << "pusher_time= " << pusher_time << std::endl;
+//    std::cout << "current_time= " << current_time << std::endl;
+//    ASSERT_NO_THROW(true);
+//}
+
+static FP OneParticleTestGetParticleVelocity(FP t) {
+    return std::sin(t) * std::sin(t);
+}
+
+TEST(CurrentDepositionTest, OneParticleTest) {
+    std::ofstream fout("testOneParticle.txt");
+    int nx = 100, ny = 100, nz = 1;
     FP L = 1.0;
-    FP dx = L / nx, dy = dx, dz = dx;
-    int Nip = 256;
-    int Np = nx / (std::sqrt(2) * constants::pi);  // number of periods
-    int N = Nip * Np;
-    FP T0 = 0.01 * constants::electronMass * constants::c * constants::c;
-    FP D = T0 / (8 * constants::pi * constants::electronCharge * constants::electronCharge * 0.25 * dx * dx);
-    FP wp = sqrt(4.0 * constants::pi * constants::electronCharge * constants::electronCharge * D
-        / constants::electronMass);
-    FP dt = 2 * (constants::pi / wp) / Nip;
-    FP Nc = 30;
-    Particle3d::WeightType w = D * dx * dx * dx / Nc;
-    FP A = 0.05;
-    FP3 p0 = FP3(0.0, 0.0, 0.0);
+    FP dx = L / nx, dy = L / ny, dz = L / nz;
+    FP dt = 1e-5;
+    double T = 1e-11; //sec
 
     BorisPusher scalarPusher;
-
-    CurrentDepositionTSC<YeeGrid> currentDeposition(dt);
-
     Int3 numInternalCells = Int3(nx, ny, nz);
     FP3 minCoords = FP3(0.0, 0.0, 0.0);
     FP3 steps = FP3(dx, dy, dz);
@@ -263,183 +457,69 @@ TEST(CurrentDepositionTest, PlasmaOscillationTest) {
 
     YeeGrid grid(numInternalCells, minCoords, steps, globalGridDims);
 
-    for (int i = 0; i < grid.numCells.x; ++i)
-        for (int j = 0; j < grid.numCells.y; ++j)
-            for (int k = 0; k < grid.numCells.z; ++k) {
-                grid.Ex(i, j, k) = -2 * L * D * A * constants::electronCharge 
-                    * std::cos(2 * constants::pi * grid.ExPosition(i, j, k).x / L);
-                grid.Ey(i, j, k) = 0.0;
+    for (int i = 0; i < grid.numInternalCells.x; ++i)
+        for (int j = 0; j < grid.numInternalCells.y; ++j)
+            for (int k = 0; k < grid.numInternalCells.z; ++k) {
+                grid.Ex(i, j, k) = 1e-10;
+                grid.Ey(i, j, k) = 1e-10;
                 grid.Ez(i, j, k) = 0.0;
                 grid.Bx(i, j, k) = 0.0;
                 grid.By(i, j, k) = 0.0;
                 grid.Bz(i, j, k) = 0.0;
             }
 
-    ParticleArray3d particleArray;
+    ParticleArray3d particles;
+    Particle3d particle;
+    particle.setVelocity(FP3(0, 0, 0));
+    particle.setPosition(FP3(L / 2.0 + dx / 2.0, L / 2.0 + dy / 2.0, L / 2 + dz / 2.0));
+    particles.pushBack(particle);
+    double alpha = constants::pi / 5.0;
+
 
     PeriodicalParticleBoundaryConditions particleSolver;
     FDTD fdtd(&grid, dt);
+    std::cout << "dt= " << fdtd.dt << std::endl;
+    dt = fdtd.dt;
+    CurrentDepositionTSC<YeeGrid> currentDeposition(dt);
     PeriodicalCurrentBoundaryConditions<YeeGridType> periodicalCurrentBoundary(&fdtd);
     PeriodicalFieldGeneratorYee generator(&fdtd);
     fdtd.setFieldGenerator(&generator);
 
-    ParticleGenerator particleGenerator;
-    particleGenerator(&particleArray, &grid,
-        testCurrentDepositionTestPlasmaOscillationTestParticleDensityFunc,
-        testCurrentDepositionTestPlasmaOscillationTestInitialTemperatureFunc,
-        testCurrentDepositionTestPlasmaOscillationTestInitialMomentumFunc,
-        w, ParticleTypes::Electron
-    );
-    std::cout << "n= " << particleArray.size() << std::endl;
-
-    std::ofstream fout("OscillationTestEx.txt");
-    std::ofstream fout2("OscillationTestElectronDensity.txt");
-    std::ofstream fout_energy("FieldEnergy.txt");
-
-    double current_time = 0.0;
-    double fdtd_time = 0.0;
-    double interpolate_time = 0.0;
-    double pusher_time = 0.0;
-
-    //-------------------------------------------initial-field-energy--------------------------------------------------
-    double energy = 0.0;
-    for (int i = grid.getNumExternalLeftCells().x; i < grid.numCells.x - grid.getNumExternalLeftCells().x; i++)
-        for (int j = grid.getNumExternalLeftCells().y; j < grid.numCells.y - grid.getNumExternalLeftCells().y; j++)
-            for (int k = grid.getNumExternalLeftCells().z; k < grid.numCells.z - grid.getNumExternalLeftCells().z; k++) {
-                energy += grid.Ex(i, j, k) * grid.Ex(i, j, k);
-                energy += grid.Ey(i, j, k) * grid.Ey(i, j, k);
-                energy += grid.Ez(i, j, k) * grid.Ez(i, j, k);
-                energy += grid.Bx(i, j, k) * grid.Bx(i, j, k);
-                energy += grid.By(i, j, k) * grid.By(i, j, k);
-                energy += grid.Bz(i, j, k) * grid.Bz(i, j, k);
-            }
-    energy = energy * dx * dy * dz * 1e-7 / ((FP)8 * constants::pi);
-    for (int i = 0; i < particleArray.size(); i++) {
-        double constant_particle = 1000.0 * 100.0;
-        energy += particleArray[i].getMass() * std::sqrt(particleArray[i].getVelocity().x * particleArray[i].getVelocity().x +
-            particleArray[i].getVelocity().y * particleArray[i].getVelocity().y + particleArray[i].getVelocity().z * particleArray[i].getVelocity().z) / 2.0 * constant_particle;
-    }
-    std::cout << "in start: " << energy << std::endl;
-
-    for (int i = 0; i < N; ++i) {
-        if (i % 16 == 0) {
-            //-------------------------------current-energy--------------------------------------------------------------
-            energy = 0.0;
-            for (int i = grid.getNumExternalLeftCells().x; i < grid.numCells.x - grid.getNumExternalLeftCells().x; i++)
-                for (int j = grid.getNumExternalLeftCells().y; j < grid.numCells.y - grid.getNumExternalLeftCells().y; j++)
-                    for (int k = grid.getNumExternalLeftCells().z; k < grid.numCells.z - grid.getNumExternalLeftCells().z; k++) {
-                        energy += grid.Ex(i, j, k) * grid.Ex(i, j, k);
-                        energy += grid.Ey(i, j, k) * grid.Ey(i, j, k);
-                        energy += grid.Ez(i, j, k) * grid.Ez(i, j, k);
-                        energy += grid.Bx(i, j, k) * grid.Bx(i, j, k);
-                        energy += grid.By(i, j, k) * grid.By(i, j, k);
-                        energy += grid.Bz(i, j, k) * grid.Bz(i, j, k);
-                    }
-            energy = energy * dx * dy * dz * 1e-7 / ((FP)8 * constants::pi);
-            for (int i = 0; i < particleArray.size(); i++) {
-                double constant_particle = 1000.0 * 100.0;
-                energy += particleArray[i].getMass() * std::sqrt(particleArray[i].getVelocity().x
-                    * particleArray[i].getVelocity().x + particleArray[i].getVelocity().y
-                    * particleArray[i].getVelocity().y + particleArray[i].getVelocity().z
-                    * particleArray[i].getVelocity().z) / 2.0 * constant_particle;
-            }
-            fout_energy << i << " " << energy << std::endl;
-            for (int j = 0; j < grid.numInternalCells.x; ++j) {
-                Int3 idx; FP3 internalCoords;
-                fout << i << " " << minCoords.x + j * grid.steps.x << " " << grid.Ex(j
-                    + grid.getNumExternalLeftCells().x, grid.getNumExternalLeftCells().y,
-                    grid.getNumExternalLeftCells().z) << std::endl;                
-            }
-
-            for (int k = 0; k < grid.numInternalCells.x; ++k) {
-                int electronCount = 0;
-                FP minCellCoords = minCoords.x + k * grid.steps.x;
-                FP maxCellCoords = minCoords.x + (k + 1) * grid.steps.x;
-
-                for (int j = 0; j < particleArray.size(); ++j) {
-                    if ((particleArray[j].getPosition().x >= minCellCoords)
-                        && (particleArray[j].getPosition().x <= maxCellCoords))
-                        electronCount++;
-                }
-                // to sinchronize the output with Picador
-                FP electronDensity = electronCount * w;  // density through plane
-                fout2 << i << " " << minCellCoords << " " << electronDensity << std::endl;
-            }
+    for (double t = 0; t < T; t += dt) {
+        if (particles[0].getVelocity().norm() < 0.3 * constants::c) {
+            particles[0].setVelocity(FP3(OneParticleTestGetParticleVelocity(t) * std::cos(alpha),
+                OneParticleTestGetParticleVelocity(t) * std::sin(alpha),
+                0));
         }
-
-        auto fdtd_start = chrono::steady_clock::now();
-
+        else {
+            particles[0].setVelocity(FP3(0, 0, 0));
+        }
+        
         //fdtd
         fdtd.updateFields();
-
-        auto fdtd_end = chrono::steady_clock::now();
-        double fdtd_local_time = (chrono::duration_cast<chrono::nanoseconds>(fdtd_end - fdtd_start).count()) / 1e9;
-        fdtd_time += fdtd_local_time;
-
-        auto interpolate_start = chrono::steady_clock::now();
         //interpolate
         std::vector<ValueField> fields;
-        for (int i = 0; i < particleArray.size(); i++) {
-            FP3 E, B;
-            grid.getFieldsTSC(particleArray[i].getPosition(), E, B);
-            fields.push_back(ValueField(E, B));
-        }
-
-        auto interpolate_end = chrono::steady_clock::now();
-        double interpolate_local_time = (chrono::duration_cast<chrono::nanoseconds>(interpolate_end 
-            - interpolate_start).count()) / 1e9;
-        interpolate_time += interpolate_local_time;
-
-        auto pusher_start = chrono::steady_clock::now();
+        FP3 E, B;
+        grid.getFieldsTSC(particles[0].getPosition(), E, B);
+        fields.push_back(ValueField(E, B));
         //pusher
-        scalarPusher(&particleArray, fields, dt);
-
-        auto pusher_end = chrono::steady_clock::now();
-        double pusher_local_time = (chrono::duration_cast<chrono::nanoseconds>(pusher_end 
-            - pusher_start).count()) / 1e9;
-        pusher_time += pusher_local_time;
-
+        scalarPusher(&particles, fields, dt);
         //periodical particle position
-        particleSolver.updateParticlePosition(&grid, &particleArray);
+        particleSolver.updateParticlePosition(&grid, &particles);
         // current deposition
         fdtd.updateDims();
-
-        auto start = chrono::steady_clock::now();
-        currentDeposition(&grid, &particleArray);
-        auto end = chrono::steady_clock::now();
-        double current_local_time = (chrono::duration_cast<chrono::nanoseconds>(end - start).count()) / 1e9;
-        current_time += current_local_time;
+        currentDeposition(&grid, &particles);
         periodicalCurrentBoundary.updateCurrentBoundaries();
+    }
 
+    for (int i = 0; i < nx; ++i) {
+        for (int j = 0; j < ny; ++j) {
+            FP3 coords = FP3(i + grid.getNumExternalLeftCells().x, j + grid.getNumExternalLeftCells().y, grid.getNumExternalLeftCells().z);
+            FP norm2 = grid.Ex(coords) * grid.Ex(coords) + grid.Ey(coords) * grid.Ey(coords) + grid.Ez(coords) * grid.Ez(coords);
+            fout << std::sqrt(norm2) << " ";
+        }
+        fout << std::endl;
     }
     fout.close();
-    fout2.close();
-
-    //-------------------------final-energy------------------------------------
-    energy = 0.0;
-    for (int i = grid.numInternalCells.x; i < grid.numCells.x; i++)
-        for (int j = grid.numInternalCells.y; j < grid.numCells.y; j++)
-            for (int k = grid.numInternalCells.z; k < grid.numCells.z; k++) {
-                energy += grid.Ex(i, j, k) * grid.Ex(i, j, k);
-                energy += grid.Ey(i, j, k) * grid.Ey(i, j, k);
-                energy += grid.Ez(i, j, k) * grid.Ez(i, j, k);
-                energy += grid.Bx(i, j, k) * grid.Bx(i, j, k);
-                energy += grid.By(i, j, k) * grid.By(i, j, k);
-                energy += grid.Bz(i, j, k) * grid.Bz(i, j, k);
-            }
-    energy = energy * dx * dy * dz * 1e-7 / ((FP)8 * constants::pi);
-    for (int i = 0; i < particleArray.size(); i++) {
-        double constant_particle = 1000.0 * 100.0;
-        energy += particleArray[i].getMass() * std::sqrt(particleArray[i].getVelocity().x 
-            * particleArray[i].getVelocity().x + particleArray[i].getVelocity().y 
-            * particleArray[i].getVelocity().y + particleArray[i].getVelocity().z 
-            * particleArray[i].getVelocity().z) / 2.0 * constant_particle;
-    }
-    std::cout << "in end: " << energy << std::endl;
-
-    std::cout << "fdtd time= " << fdtd_time << std::endl;
-    std::cout << "interpolate_time= " << interpolate_time << std::endl;
-    std::cout << "pusher_time= " << pusher_time << std::endl;
-    std::cout << "current_time= " << current_time << std::endl;
     ASSERT_NO_THROW(true);
 }

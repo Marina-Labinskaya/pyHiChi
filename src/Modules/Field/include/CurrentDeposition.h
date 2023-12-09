@@ -19,14 +19,6 @@ namespace pfc
 
         CurrentDeposition(double _dt) : dt(_dt) {}
 
-        void setDt(double _dt) {
-            dt = _dt;
-        }
-
-        double getDt() {
-            return dt;
-        }
-
         template<class T_Particle>
         void operator()(TGrid* grid, const T_Particle& particle,
             CurrentDeposition::ZeroizeJ UsingZeroizeJ = CurrentDeposition::ZeroizeJ::NOT_USE_ZEROIZEJ) {
@@ -133,7 +125,7 @@ namespace pfc
         {
             Int3 idxJx, idxJy, idxJz;
             FP3 internalCoordsJx, internalCoordsJy, internalCoordsJz;
-            FP3 particlePosition = particle->getPosition(); // -(particle->getVelocity() * dt / 2.0);
+            FP3 particlePosition = particle->getPosition();// -(particle->getVelocity() * dt / 2.0);
             FP3 current = (constants::c * particle->getCharge() * particle->getWeight() / particle->getGamma())
                 * (particle->getP() / grid->steps.volume());
 
