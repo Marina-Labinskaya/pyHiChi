@@ -72,13 +72,13 @@ namespace pfc {
             this->setType(particleProxy.getType());
         }
 
-        Particle(ParticleProxy<dimension> particleProxy)
+        /*Particle(ParticleProxy<dimension> particleProxy)
         {
             this->setPosition(particleProxy.getPosition());
             this->setP(particleProxy.getP());
             this->setWeight(particleProxy.getWeight());
             this->setType(particleProxy.getType());
-        }
+        }*/
 
         //PositionTypeProxy& getProxyPosition() { return PositionTypeProxy(position); } //only advanced users
         PositionType getPosition() const { return position; }
@@ -135,7 +135,7 @@ namespace pfc {
         WeightType weight;
         GammaType gamma;
         TypeIndexType typeIndex;
-
+        
         template<Dimension dim>
         friend class ParticleProxy;
     };
@@ -161,14 +161,14 @@ namespace pfc {
         typedef reference_wrapper<WeightType> WeightTypeProxy;
         typedef reference_wrapper<TypeIndexType> TypeIndexTypeProxy;
 
-        ParticleProxy(PositionTypeProxy& position, MomentumTypeProxy& p,
-            WeightTypeProxy& weight, TypeIndexTypeProxy& typeIndex, GammaTypeProxy& gamma) :
+        ParticleProxy(PositionTypeProxy& position, MomentumTypeProxy& p, WeightTypeProxy& weight,
+            TypeIndexTypeProxy& typeIndex, GammaTypeProxy& gamma) :
             position(position), weight(weight), typeIndex(typeIndex),
             p(p), gamma(gamma)
         {}
 
-        ParticleProxy(PositionType& position, MomentumType& p,
-            WeightType& weight, TypeIndexType& typeIndex, GammaType& gamma) :
+        ParticleProxy(PositionType& position, MomentumType& p, WeightType& weight,
+            TypeIndexType& typeIndex, GammaType& gamma) :
             position(position), weight(weight), typeIndex(typeIndex),
             p(p), gamma(gamma)
         {}
@@ -229,7 +229,7 @@ namespace pfc {
         TypeIndexType getType() const { return typeIndex.get(); }
         void setType(TypeIndexType newType) { typeIndex.get() = newType; }
 
-    private:
+        private:
 
         PositionTypeProxy position;
         MomentumTypeProxy p;

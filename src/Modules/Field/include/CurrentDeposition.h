@@ -31,7 +31,7 @@ namespace pfc
         void operator()(TGrid* grid, T_ParticleArray* particleArray) {
             typedef typename T_ParticleArray::ParticleProxyType ParticleProxyType;
             grid->zeroizeJ();
-
+#pragma omp parallel for
             for (int i = 0; i < particleArray->size(); i++) {
                 ParticleProxyType particle = (*particleArray)[i];
                 static_cast<DerivedClass*>(this)->depositOneParticle(grid, &particle);
@@ -41,7 +41,7 @@ namespace pfc
 
         template<class T_Particle>
         void depositOneParticle(TGrid* grid, T_Particle* particle) {
-            static_assert(false, "ERROR: CurrentDeposition::depositOnePaticle shouldn't be called");
+            static_assert(false, "ERROR: CurrentDeposition::depositOneParticle shouldn't be called");
         }
 
     protected:
@@ -80,7 +80,7 @@ namespace pfc
         {
             Int3 idxJx, idxJy, idxJz;
             FP3 internalCoordsJx, internalCoordsJy, internalCoordsJz;
-            FP3 particlePosition = particle->getPosition(); // - (particle->getVelocity() * dt / 2.0);
+            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * dt / 2.0);
 
             FP3 current = (particle->getVelocity() * particle->getCharge() * particle->getWeight()) /
                 grid->steps.volume();
@@ -91,13 +91,22 @@ namespace pfc
 
             FormFactorCIC formFactor;
             formFactor(internalCoordsJx);
-            depositComponentCurrent(grid->Jx, idxJx, current.x, formFactor);
+#pragma omp critical (CICJx)
+            {
+                depositComponentCurrent(grid->Jx, idxJx, current.x, formFactor);
+            }
 
             formFactor(internalCoordsJy);
-            depositComponentCurrent(grid->Jy, idxJy, current.y, formFactor);
+#pragma omp critical (CICJy)
+            {
+                depositComponentCurrent(grid->Jy, idxJy, current.y, formFactor);
+            }
 
             formFactor(internalCoordsJz);
-            depositComponentCurrent(grid->Jz, idxJz, current.z, formFactor);
+#pragma omp critical (CICJz)
+            {
+                depositComponentCurrent(grid->Jz, idxJz, current.z, formFactor);
+            }
         }
     };
 
@@ -125,23 +134,34 @@ namespace pfc
         {
             Int3 idxJx, idxJy, idxJz;
             FP3 internalCoordsJx, internalCoordsJy, internalCoordsJz;
-            FP3 particlePosition = particle->getPosition();// -(particle->getVelocity() * dt / 2.0);
-            FP3 current = (constants::c * particle->getCharge() * particle->getWeight() / particle->getGamma())
-                * (particle->getP() / grid->steps.volume());
+            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * dt / 2.0);
 
-            grid->getIndexEJx(particlePosition, idxJx, internalCoordsJx);
-            grid->getIndexEJy(particlePosition, idxJy, internalCoordsJy);
-            grid->getIndexEJz(particlePosition, idxJz, internalCoordsJz);
+            FP3 current = (particle->getVelocity() * particle->getCharge() * particle->getWeight()) /
+                grid->steps.volume();
+
+
+            grid->getIndexEJxTSC(particlePosition, idxJx, internalCoordsJx);
+            grid->getIndexEJyTSC(particlePosition, idxJy, internalCoordsJy);
+            grid->getIndexEJzTSC(particlePosition, idxJz, internalCoordsJz);
 
             FormFactorTSC formFactor;
             formFactor(internalCoordsJx);
-            depositComponentCurrent(grid->Jx, idxJx, current.x, formFactor);
+#pragma omp critical (TSCJx)
+            {
+                depositComponentCurrent(grid->Jx, idxJx, current.x, formFactor);
+            }
 
             formFactor(internalCoordsJy);
-            depositComponentCurrent(grid->Jy, idxJy, current.y, formFactor);
+#pragma omp critical (TSCJy)
+            {
+                depositComponentCurrent(grid->Jy, idxJy, current.y, formFactor);
+            }
 
             formFactor(internalCoordsJz);
-            depositComponentCurrent(grid->Jz, idxJz, current.z, formFactor);
+#pragma omp critical (TSCJz)
+            {
+                depositComponentCurrent(grid->Jz, idxJz, current.z, formFactor);
+            }
         }
     };
 }

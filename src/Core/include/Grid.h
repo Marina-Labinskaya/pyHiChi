@@ -286,7 +286,9 @@ namespace pfc {
 
         const Int3 getNumExternalLeftCells() const
         {
-            Int3 result(numExternalCells, numExternalCells, numExternalCells);
+            Int3 result(LabelMethodRequiredNumberOfExternalCells<gridType_>::numExternalCells,
+                        LabelMethodRequiredNumberOfExternalCells<gridType_>::numExternalCells,
+                        LabelMethodRequiredNumberOfExternalCells<gridType_>::numExternalCells);
             for (int d = 0; d < 3; d++)
                 if (globalGridDims[d] == 1)
                     result[d] = 0;
@@ -323,6 +325,16 @@ namespace pfc {
         }
         forceinline void getIndexBz(const FP3& coords, Int3& idx, FP3& internalCoords) const {
             getGridCoords(coords, shiftBz, idx, internalCoords);
+        }
+
+        forceinline void getIndexEJxTSC(const FP3& coords, Int3& idx, FP3& internalCoords) const {
+            getGridCoordsTSC(coords, shiftEJx, idx, internalCoords);
+        }
+        forceinline void getIndexEJyTSC(const FP3& coords, Int3& idx, FP3& internalCoords) const {
+            getGridCoordsTSC(coords, shiftEJy, idx, internalCoords);
+        }
+        forceinline void getIndexEJzTSC(const FP3& coords, Int3& idx, FP3& internalCoords) const {
+            getGridCoordsTSC(coords, shiftEJz, idx, internalCoords);
         }
 
         /* Get the closest grid index and normalized in cell internal coords in [0, 0, 0]..(1, 1, 1) for
@@ -395,6 +407,14 @@ namespace pfc {
             idx.x = (int)((coords.x - origin.x - shift.x) / steps.x);
             idx.y = (int)((coords.y - origin.y - shift.y) / steps.y);
             idx.z = (int)((coords.z - origin.z - shift.z) / steps.z);
+            internalCoords = (coords - baseCoords(idx.x, idx.y, idx.z) - shift) / steps;
+        }
+
+        void getGridCoordsTSC(const FP3& coords, const FP3& shift, Int3& idx,
+            FP3& internalCoords) const {
+            idx.x = (int)((coords.x - origin.x - shift.x) / steps.x + 0.5);
+            idx.y = (int)((coords.y - origin.y - shift.y) / steps.y + 0.5);
+            idx.z = (int)((coords.z - origin.z - shift.z) / steps.z + 0.5);
             internalCoords = (coords - baseCoords(idx.x, idx.y, idx.z) - shift) / steps;
         }
 

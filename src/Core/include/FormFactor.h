@@ -61,11 +61,19 @@ namespace pfc {
     class FormFactorTSC : public FormFactor {
     public:
         void operator()(FP3 coords) {
-            for (int i = 0; i < 3; ++i) {
+
+            for (int ii = 0; ii < 3; ii++)
+                c[0][ii] = formfactorTSC(FP(ii - 1) - coords.x);
+            for (int jj = 0; jj < 3; jj++)
+                c[1][jj] = formfactorTSC(FP(jj - 1) - coords.y);
+            for (int kk = 0; kk < 3; kk++)
+                c[2][kk] = formfactorTSC(FP(kk - 1) - coords.z);
+
+            /*for (int i = 0; i < 3; ++i) {
                 for (int j = 0; j < 3; ++j) {
                     c[i][j] = formfactorTSC(FP(j - 1) - coords[i]);
                 }
-            }
+            }*/
         }
 
         FP c[3][3];

@@ -5,6 +5,8 @@
 #include "Particle.h"
 #include "VectorsProxy.h"
 
+#include <fstream>
+
 
 namespace pfc {
     class ParticleGenerator {
@@ -28,7 +30,19 @@ namespace pfc {
             WeightType weight = 1.0,
             TypeIndexType typeIndex = ParticleTypes::Electron)
         {
-            Int3 startIndex = grid->getNumExternalLeftCells();
+            ifstream file("C:/Users/lifej/Desktop/programs/picador_new/release/1.0rc1/bin/Particles_picador.txt");
+            while (file) {
+                PositionType particlePosition;
+                MomentumType particleMomentum;
+                file >> particlePosition.x >> particlePosition.y >> particlePosition.z >> particleMomentum.x >> particleMomentum.y >> particleMomentum.z;
+                FP temperature = initialTemperature(particlePosition.x, particlePosition.y, particlePosition.z);
+                Particle3d newParticle(particlePosition, particleMomentum, weight, typeIndex);
+                particleArray->pushBack(newParticle);
+            }
+
+            file.close();
+
+            /*Int3 startIndex = grid->getNumExternalLeftCells();
             Int3 endIndex = grid->getNumExternalLeftCells() + grid->numInternalCells;
 
             for (int i = startIndex.x; i < endIndex.x; ++i)
@@ -45,7 +59,7 @@ namespace pfc {
                             initialMomentum,
                             weight
                             );
-                    }
+                    }*/
         }
 
         template<class T_ParticleArray>
@@ -57,27 +71,26 @@ namespace pfc {
             WeightType weight = 1.0,
             TypeIndexType typeIndex = ParticleTypes::Electron)
         {
-            FP3 center = (minCellCoords + maxCellCoords) * 0.5;
-            // number of particle in cell according to density
-            FP expectedParticleNum = particleDensity(center.x, center.y, center.z) *
-                (maxCellCoords - minCellCoords).volume() / weight;
+            //FP3 center = (minCellCoords + maxCellCoords) * 0.5;
+            //// number of particle in cell according to density
+            //FP expectedParticleNum = particleDensity(center.x, center.y, center.z) *
+            //    (maxCellCoords - minCellCoords).volume() / weight;
 
-            int particleNum = int(expectedParticleNum);
-            // random shift of expectedParticleNum by 1 to eliminate the effect of rounding
-            std::uniform_real_distribution<FP> distRound(0.0, 1.0);
-            if (distRound(genRound) < expectedParticleNum - (FP)particleNum)
-                ++particleNum;
+            //int particleNum = int(expectedParticleNum);
+            //// random shift of expectedParticleNum by 1 to eliminate the effect of rounding
+            //std::uniform_real_distribution<FP> distRound(0.0, 1.0);
+            //if (distRound(genRound) < expectedParticleNum - (FP)particleNum)
+            //    ++particleNum;
+            //for (int i = 0; i < particleNum; ++i) {
+            //    PositionType particlePosition(getParticleRandomPosition(minCellCoords, maxCellCoords));
 
-            for (int i = 0; i < particleNum; ++i) {
-                PositionType particlePosition(getParticleRandomPosition(minCellCoords, maxCellCoords));
+            //    MomentumType meanMomentum = initialMomentum(particlePosition.x, particlePosition.y, particlePosition.z);
+            //    FP temperature = initialTemperature(particlePosition.x, particlePosition.y, particlePosition.z);
+            //    MomentumType particleMomentum(getParticleRandomMomentum(meanMomentum, temperature));
 
-                MomentumType meanMomentum = initialMomentum(particlePosition.x, particlePosition.y, particlePosition.z);
-                FP temperature = initialTemperature(particlePosition.x, particlePosition.y, particlePosition.z);
-                MomentumType particleMomentum(getParticleRandomMomentum(meanMomentum, temperature));
-
-                Particle3d newParticle(particlePosition, particleMomentum, weight, typeIndex);
-                particleArray->pushBack(newParticle);
-            }
+            //    Particle3d newParticle(particlePosition, particleMomentum, weight, typeIndex);
+            //    particleArray->pushBack(newParticle);
+            //}
         }
 
     private:

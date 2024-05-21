@@ -21,7 +21,6 @@ namespace pfc {
         pArray_t* pPArray;
         size_t index;
     public:
-
         iteratorPArray(pArray_t* _pArray) : pPArray(_pArray), index(0) {};
         iteratorPArray(pArray_t* _pArray, size_t _index): pPArray(_pArray), index(_index) {};
         iteratorPArray(const iteratorPArray &it): pPArray(it.pPArray), index(it.index){};
@@ -29,6 +28,7 @@ namespace pfc {
         size_t getIdx() { return index; };
 
         ParticleType operator *() { return pPArray->operator[](index); }
+        ParticleType operator *() const { return pPArray->operator[](index); }
         const iteratorPArray &operator ++() { ++index; return *this; }
         const iteratorPArray &operator --() { --index; return *this; }
         iteratorPArray operator ++(int) 
@@ -43,12 +43,12 @@ namespace pfc {
             --index;
             return copy;
         }
-        iteratorPArray & operator =(const iteratorPArray & other) 
-        {
+        iteratorPArray & operator =(const iteratorPArray & other) = default;
+        /*{
             this->pParray = other.pPArray;
             this->index = other.index;
-            return *this; 
-        }
+            return *this;
+        }*/
 
         bool operator ==(const iteratorPArray &other) const
         { return index == other.index; }
@@ -84,8 +84,14 @@ namespace pfc {
 
         ParticleType operator [](const size_t &n) const
         { return *pPArray[index + n]; }
-    };
 
+        friend size_t operator -(const iteratorPArray& it1, const iteratorPArray& it2)
+        {
+            size_t n = it1.index - it2.index;
+            return n;
+        }
+
+    };
 
 
     // Collection of particles with array-like semantics,
