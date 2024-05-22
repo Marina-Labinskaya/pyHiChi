@@ -41,7 +41,7 @@ namespace pfc
 
         template<class T_Particle>
         void depositOneParticle(TGrid* grid, T_Particle* particle) {
-            static_assert(false, "ERROR: CurrentDeposition::depositOneParticle shouldn't be called");
+            //static_assert(false, "ERROR: CurrentDeposition::depositOneParticle shouldn't be called");
         }
 
     protected:
@@ -52,7 +52,7 @@ namespace pfc
     class CurrentDepositionCIC : public CurrentDeposition<TGrid, CurrentDepositionCIC<TGrid>>
     {
     public:
-        CurrentDepositionCIC(double _dt) : CurrentDeposition(_dt) {}
+        CurrentDepositionCIC(double _dt) : CurrentDeposition<TGrid, CurrentDepositionCIC<TGrid>>(_dt) {}
 
         void depositComponentCurrent(ScalarField<FP> & field, const Int3 & idx,
             const FP & fieldBeforeDeposition, FormFactorCIC& formFactor)
@@ -80,7 +80,7 @@ namespace pfc
         {
             Int3 idxJx, idxJy, idxJz;
             FP3 internalCoordsJx, internalCoordsJy, internalCoordsJz;
-            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * dt / 2.0);
+            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * this->dt / 2.0);
 
             FP3 current = (particle->getVelocity() * particle->getCharge() * particle->getWeight()) /
                 grid->steps.volume();
@@ -114,7 +114,7 @@ namespace pfc
     class CurrentDepositionTSC : public CurrentDeposition<TGrid, CurrentDepositionTSC<TGrid>>
     {
     public:
-        CurrentDepositionTSC(double _dt) : CurrentDeposition(_dt) {}
+        CurrentDepositionTSC(double _dt) : CurrentDeposition<TGrid, CurrentDepositionTSC<TGrid>>(_dt) {}
 
         void depositComponentCurrent(ScalarField<FP> & field, const Int3 & idx,
             const FP & fieldBeforeDeposition, FormFactorTSC& formFactor)
@@ -134,7 +134,7 @@ namespace pfc
         {
             Int3 idxJx, idxJy, idxJz;
             FP3 internalCoordsJx, internalCoordsJy, internalCoordsJz;
-            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * dt / 2.0);
+            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * this->dt / 2.0);
 
             FP3 current = (particle->getVelocity() * particle->getCharge() * particle->getWeight()) /
                 grid->steps.volume();

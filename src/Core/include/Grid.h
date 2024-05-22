@@ -32,7 +32,7 @@ namespace pfc {
             const Int3 & globalGridDims);
         Grid(const Int3 & _numAllCells,
             const Int3 & globalGridDims);  // for complex grids only
-        Grid(const Int3 & _numAllCells, const Int3 & globalGridDims, 
+        Grid(const Int3 & _numAllCells, const Int3 & globalGridDims,
             Grid<FP, gridType_>* grid);  // 'grid' and 'this' will have common memory
 
         // copy constructor, can make shallow copies
@@ -89,7 +89,7 @@ namespace pfc {
         {
             (this->*interpolationFields)(coords, e, b);
         }
-        
+
         virtual FP3 getJ(const FP3& coords) const;
         virtual FP3 getE(const FP3& coords) const;
         virtual FP3 getB(const FP3& coords) const;
@@ -287,8 +287,8 @@ namespace pfc {
         const Int3 getNumExternalLeftCells() const
         {
             Int3 result(LabelMethodRequiredNumberOfExternalCells<gridType_>::numExternalCells,
-                        LabelMethodRequiredNumberOfExternalCells<gridType_>::numExternalCells,
-                        LabelMethodRequiredNumberOfExternalCells<gridType_>::numExternalCells);
+                LabelMethodRequiredNumberOfExternalCells<gridType_>::numExternalCells,
+                LabelMethodRequiredNumberOfExternalCells<gridType_>::numExternalCells);
             for (int d = 0; d < 3; d++)
                 if (globalGridDims[d] == 1)
                     result[d] = 0;
@@ -397,7 +397,7 @@ namespace pfc {
         // 3d shifts of the field in the cell
         const FP3 shiftEJx, shiftEJy, shiftEJz,
             shiftBx, shiftBy, shiftBz;
-        
+
     private:
 
         /* Get left grid index and normalized internal coords in [0, 0, 0]..(1, 1, 1) for
@@ -452,7 +452,7 @@ namespace pfc {
 
         InterpolationType interpolationType;
         void (Grid::*interpolationFields)(const FP3&, FP3&, FP3&) const;
-        FP (Grid::*interpolationEx)(const FP3&) const;
+        FP(Grid::*interpolationEx)(const FP3&) const;
         FP(Grid::*interpolationEy)(const FP3&) const;
         FP(Grid::*interpolationEz)(const FP3&) const;
         FP(Grid::*interpolationBx)(const FP3&) const;
@@ -518,13 +518,13 @@ namespace pfc {
     {
         if (this->numInternalCells < this->getNumExternalLeftCells() + this->getNumExternalRightCells()) {
             std::cout << "ERROR: grid size should be more than both overlaps" << std::endl;
-            throw std::exception("ERROR: grid size should be more than both overlaps");
+            throw std::logic_error("ERROR: grid size should be more than both overlaps");
         }
         setInterpolationType(Interpolation_CIC);
     }
 
     template<>
-    inline Grid<FP, GridTypes::StraightGridType>::Grid(const Int3 & _numInternalCells, 
+    inline Grid<FP, GridTypes::StraightGridType>::Grid(const Int3 & _numInternalCells,
         const FP3 & minCoords, const FP3 & _steps, const Int3 & _globalGridDims) :
         globalGridDims(_globalGridDims),
         steps(_steps),
@@ -547,7 +547,7 @@ namespace pfc {
     {
         if (this->numInternalCells < this->getNumExternalLeftCells() + this->getNumExternalRightCells()) {
             std::cout << "ERROR: grid size should be more than both overlaps" << std::endl;
-            throw std::exception("ERROR: grid size should be more than both overlaps");
+            throw std::logic_error("ERROR: grid size should be more than both overlaps");
         }
         setInterpolationType(Interpolation_CIC);
     }
@@ -721,7 +721,7 @@ namespace pfc {
         shiftBz(FP3(0, 0, 0) * steps),
         dimensionality((_globalGridDims.x != 1) + (_globalGridDims.y != 1) + (_globalGridDims.z != 1))
     {
-        setInterpolationType(Interpolation_CIC);       
+        setInterpolationType(Interpolation_CIC);
     }
 
     // PSATDTimeStraggered
@@ -778,7 +778,7 @@ namespace pfc {
 
 
     // end SPECTRAL GRIDS
-    
+
     template< typename Data, GridTypes gT>
     inline FP Grid<Data, gT>::getFieldCIC(const FP3& coords, const ScalarField<Data>& field, const FP3 & shift) const
     {
@@ -999,7 +999,7 @@ namespace pfc {
 
         return b;
     }
-    
+
     template< typename Data, GridTypes gT>
     inline void Grid<Data, gT>::zeroizeJ()
     {
@@ -1147,7 +1147,7 @@ namespace pfc {
                     Ez(nodeIdx) = e[idx].z;
                 }
     }
-    
+
     template<>
     inline void Grid<FP, YeeGridType>::loadB(const FP3 * b, const Int3 * minCellIdx, const Int3 * maxCellIdx)
     {

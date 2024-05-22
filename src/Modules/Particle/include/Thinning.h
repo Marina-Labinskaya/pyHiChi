@@ -158,7 +158,7 @@ namespace pfc
             Momentum, Momentum_x, Momentum_y, Momentum_z,
             Position, Position_x, Position_y, Position_z,
             Dispersion_Energy,
-            Dispersion_Momentum, Dispersion_Momentum_x, 
+            Dispersion_Momentum, Dispersion_Momentum_x,
             Dispersion_Momentum_y, Dispersion_Momentum_z,
             Dispersion_Position, Dispersion_Position_x,
             Dispersion_Position_y, Dispersion_Position_z,
@@ -255,7 +255,7 @@ namespace pfc
                     particles_arrays.pop();
                     weight[indexPart] = partParticleArray[indexPart].getWeight();
                     int indexFeat = 0;
-                    for (set<Features>::iterator it = features.begin(); it != features.end();
+                    for (typename set<Features>::iterator it = features.begin(); it != features.end();
                         ++it, indexFeat++)
                     {
                         switch (*it)
@@ -407,7 +407,7 @@ namespace pfc
         inline int thinningConservative_reweighing(vector<double>& weight, vector< vector<double> >& components)
         {
             std::uniform_real_distribution<FP> dist(0, 1.0);
-         
+
             int N = weight.size();
 
             vector< vector<double> > v(N);

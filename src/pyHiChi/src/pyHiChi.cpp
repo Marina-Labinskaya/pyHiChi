@@ -1,4 +1,4 @@
-// Python-Interface.cpp : Defines exported functions for the dll-file.
+// // Python-Interface.cpp : Defines exported functions for the dll-file.
 //
 
 #include <algorithm>
@@ -179,7 +179,7 @@ PYBIND11_MODULE(pyHiChi, object) {
         .def_readwrite("z", &FP3::z)
         ;
 
-    object.def("cross", (const Vector3<FP> (*)(const Vector3Proxy<FP>&, const Vector3Proxy<FP>&)) cross);
+    object.def("cross", (const Vector3<FP>(*)(const Vector3Proxy<FP>&, const Vector3Proxy<FP>&)) cross);
     object.def("cross", (FP3(*)(const FP3&, const FP3&)) cross);
     object.def("dot", (FP(*)(const Vector3Proxy<FP>&, const Vector3Proxy<FP>&)) dot);
     object.def("dot", (FP(*)(const FP3&, const FP3&)) dot);
@@ -305,10 +305,10 @@ PYBIND11_MODULE(pyHiChi, object) {
 
     // ------------------- current deposition ----------------------
 
-    py::class_<pyFirstOrderCurrentDeposition<YeeGrid, FDTD>>(object, "DepositionCIC")
-        .def(py::init<pyYeeField*>())
-        .def("__call__", (void (pyFirstOrderCurrentDeposition<YeeGrid, FDTD>::*)(ParticleArray3d*, double)) &pyFirstOrderCurrentDeposition<YeeGrid, FDTD>::operator())
-        .def("getJ",  &pyFirstOrderCurrentDeposition<YeeGrid, FDTD>::getJ)
+    py::class_<pyCurrentDepositionCIC<YeeGrid, FDTD>>(object, "DepositionCIC")
+        .def(py::init<pyYeeField*, double>())
+        .def("__call__", (void (pyCurrentDepositionCIC<YeeGrid, FDTD>::*)(ParticleArray3d*)) &pyCurrentDepositionCIC<YeeGrid, FDTD>::operator())
+        .def("getJ", &pyCurrentDepositionCIC<YeeGrid, FDTD>::getJ)
 
         ;
 
@@ -337,15 +337,15 @@ PYBIND11_MODULE(pyHiChi, object) {
 
     py::class_<pyInterpolation<YeeGrid, FDTD>>(object, "InterpolationCIC")
         .def(py::init<pyYeeField*>())
-        .def("getExCIC",  &pyInterpolation<YeeGrid, FDTD>::getExCIC)
-        .def("getEyCIC",  &pyInterpolation<YeeGrid, FDTD>::getEyCIC)
-        .def("getEzCIC",  &pyInterpolation<YeeGrid, FDTD>::getEzCIC)
-        .def("getBxCIC",  &pyInterpolation<YeeGrid, FDTD>::getBxCIC)
-        .def("getByCIC",  &pyInterpolation<YeeGrid, FDTD>::getByCIC)
-        .def("getBzCIC",  &pyInterpolation<YeeGrid, FDTD>::getBzCIC)
-        .def("getJxCIC",  &pyInterpolation<YeeGrid, FDTD>::getJxCIC)
-        .def("getJyCIC",  &pyInterpolation<YeeGrid, FDTD>::getJyCIC)
-        .def("getJzCIC",  &pyInterpolation<YeeGrid, FDTD>::getJzCIC)
+        .def("getExCIC", &pyInterpolation<YeeGrid, FDTD>::getExCIC)
+        .def("getEyCIC", &pyInterpolation<YeeGrid, FDTD>::getEyCIC)
+        .def("getEzCIC", &pyInterpolation<YeeGrid, FDTD>::getEzCIC)
+        .def("getBxCIC", &pyInterpolation<YeeGrid, FDTD>::getBxCIC)
+        .def("getByCIC", &pyInterpolation<YeeGrid, FDTD>::getByCIC)
+        .def("getBzCIC", &pyInterpolation<YeeGrid, FDTD>::getBzCIC)
+        .def("getJxCIC", &pyInterpolation<YeeGrid, FDTD>::getJxCIC)
+        .def("getJyCIC", &pyInterpolation<YeeGrid, FDTD>::getJyCIC)
+        .def("getJzCIC", &pyInterpolation<YeeGrid, FDTD>::getJzCIC)
         ;
 
     // -------------------------- QED ---------------------------
@@ -379,7 +379,7 @@ PYBIND11_MODULE(pyHiChi, object) {
         ;
 
     // ------------------- thinnings -------------------
-   
+
     py::enum_<Thinning<ParticleArray3d>::Features>(object, "Conserve")
         .value("momentum", Thinning<ParticleArray3d>::Features::Momentum)
         .value("position", Thinning<ParticleArray3d>::Features::Position)
@@ -388,7 +388,7 @@ PYBIND11_MODULE(pyHiChi, object) {
         .value("dis_position", Thinning<ParticleArray3d>::Features::Dispersion_Position)
         .value("dis_energy", Thinning<ParticleArray3d>::Features::Dispersion_Energy)
         .export_values()
-        ; 
+        ;
 
     py::class_<Thinning<ParticleArray3d>>(object, "Thinout")
         .def(py::init<>())
@@ -398,7 +398,7 @@ PYBIND11_MODULE(pyHiChi, object) {
         .def("energy_conservative_thinning", &Thinning<ParticleArray3d>::energyConservative)
         .def("conservative_thinning", &Thinning<ParticleArray3d>::thinningConservative)
         .def("k_means_mergining", &Merging<ParticleArray3d>::merge_with_kmeans)
-        ; 
+        ;
 
     // ------------------- mappings -------------------
 
@@ -419,7 +419,7 @@ PYBIND11_MODULE(pyHiChi, object) {
         .def("get_inverse_coords", &PeriodicalMapping::getInverseCoords, py::arg("coords"),
             py::arg("time") = 0.0, py::arg("status") = 0)
         ;
-    
+
     py::class_<RotationMapping, std::shared_ptr<RotationMapping>>(object, "RotationMapping", pyMapping)
         .def(py::init<Coordinate, FP>(), py::arg("axis"), py::arg("angle"))
         .def("get_direct_coords", &RotationMapping::getDirectCoords, py::arg("coords"),
@@ -595,7 +595,7 @@ PYBIND11_MODULE(pyHiChi, object) {
         ;
 
     py::class_<TightFocusingField>(object, "TightFocusingField")
-        .def(py::init<FP, FP, FP, FP, FP, FP>(), 
+        .def(py::init<FP, FP, FP, FP, FP, FP>(),
             py::arg("f_number"), py::arg("R0"), py::arg("wavelength"), py::arg("pulselength"),
             py::arg("totalPower"), py::arg("edge_smoothing_angle"))
         .def(py::init<FP, FP, FP, FP, FP, FP, FP3>(),
