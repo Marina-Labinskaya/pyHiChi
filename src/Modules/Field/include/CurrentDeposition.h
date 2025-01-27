@@ -31,7 +31,7 @@ namespace pfc
         void operator()(TGrid* grid, T_ParticleArray* particleArray) {
             typedef typename T_ParticleArray::ParticleProxyType ParticleProxyType;
             grid->zeroizeJ();
-//#pragma omp parallel for
+#pragma omp parallel for
             for (int i = 0; i < particleArray->size(); i++) {
                 ParticleProxyType particle = (*particleArray)[i];
                 static_cast<DerivedClass*>(this)->depositOneParticle(grid, &particle);
@@ -40,12 +40,119 @@ namespace pfc
 
 
         template<class T_Particle>
-        void depositOneParticle(TGrid* grid, T_Particle* particle) {
-            static_assert(false, "ERROR: CurrentDeposition::depositOneParticle shouldn't be called");
+        void depositOneParticle(TGrid* grid, T_Particle* particle) {}
+
+        const double dt;
+    };
+
+    template<class TGrid, class TCurrentDeposition, int BlockSize>
+    class LocalDeposition
+    {
+    public:
+
+        static const int blockSize = BlockSize;
+
+        LocalDeposition(const Int3& _baseGridIdx, TCurrentDeposition* currentDeposition, TGrid* _grid) :
+            baseGridIdx(_baseGridIdx)
+        {            
+            grid = _grid;
+            int blockOffset = (blockSize + 1) / 2;
+            startGridIdx = baseGridIdx - Int3(blockOffset, blockOffset, blockOffset); // if startGridIdx < 0 ???
+
+            for (int i = 0; i < this->blockSize; ++i)
+                for (int j = 0; j < this->blockSize; ++j)
+                    for (int k = 0; k < this->blockSize; ++k)
+                    {
+                        Jx[i][j][k] = 0;
+                        Jy[i][j][k] = 0;
+                        Jz[i][j][k] = 0;
+                    }
         }
 
+        ~LocalDeposition()
+        {
+            for (int i = 0; i < blockSize; ++i)
+                for (int j = 0; j < blockSize; ++j)
+                    for (int k = 0; k < blockSize; ++k)
+                    {
+                        Int3 gridIdx = remainder(startGridIdx + Int3(i, j, k), grid->numCells);
+                        #pragma omp atomic
+                        grid->Jx(gridIdx) += Jx[i][j][k];
+                        #pragma omp atomic
+                        grid->Jy(gridIdx) += Jy[i][j][k];
+                        #pragma omp atomic
+                        grid->Jz(gridIdx) += Jz[i][j][k];
+                    }
+        }
+
+        template<class TParticle>
+        void depositCurrent(const TParticle& particle) {}
+
     protected:
-        double dt;
+
+        FP Jx[blockSize][blockSize][blockSize];
+        FP Jy[blockSize][blockSize][blockSize];
+        FP Jz[blockSize][blockSize][blockSize];
+        TGrid* grid;
+        Int3 baseGridIdx, startGridIdx;
+    };
+
+    template<class TGrid>
+    class CurrentDepositionCIC;
+
+    template<class TGrid>
+    class LocalDepositionCIC : public LocalDeposition<TGrid, CurrentDepositionCIC<TGrid>, 4>
+    {
+    public:
+        LocalDepositionCIC(const Int3& blockIdx, CurrentDepositionCIC<TGrid>* currentDeposition, TGrid* _grid)
+            : LocalDeposition<TGrid, CurrentDepositionCIC<TGrid>, 4>(blockIdx, currentDeposition, _grid),
+            halfDt((FP)0.5 * currentDeposition->dt) {}
+
+        template<class T_Particle>
+        void depositCurrent(T_Particle* particle)
+        {
+            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * halfDt);
+            FP3 current = (particle->getVelocity() * particle->getCharge() * particle->getWeight()) /
+                this->grid->steps.volume();
+
+            Int3 idxJx, idxJy, idxJz;
+            FP3 internalCoordsJx, internalCoordsJy, internalCoordsJz;
+            idxJx = this->grid->getIndexJx(particlePosition) - this->startGridIdx;
+            internalCoordsJx = this->grid->getInternalCoordsJx(particlePosition);
+
+            idxJy = this->grid->getIndexJy(particlePosition) - this->startGridIdx;
+            internalCoordsJy = this->grid->getInternalCoordsJy(particlePosition);
+
+            idxJz = this->grid->getIndexJz(particlePosition) - this->startGridIdx;
+            internalCoordsJz = this->grid->getInternalCoordsJz(particlePosition);
+
+            FormFactorCIC formFactorJx, formFactorJy, formFactorJz;
+            
+            formFactorJx(internalCoordsJx);
+            formFactorJy(internalCoordsJy);
+            formFactorJz(internalCoordsJz);
+            depositComponent(idxJx, current.x, formFactorJx, this->Jx);
+            depositComponent(idxJy, current.y, formFactorJy, this->Jy);
+            depositComponent(idxJz, current.z, formFactorJz, this->Jz);
+        }
+
+    private:
+        void depositComponent(const Int3 & idx, const FP & value, FormFactorCIC& formFactor,
+            FP current[4][4][4])
+        {
+            for (int i = 0; i <= 1; i++) {
+                for (int j = 0; j <= 1; j++) {
+                    for (int k = 0; k <= 1; k++) {
+                        current[idx.x + i][idx.y + j][idx.z + k] += 
+                            (formFactor.c[0][i] *
+                             formFactor.c[1][j] *
+                             formFactor.c[2][k]
+                            ) * value;
+                    }
+                }
+            }
+        }
+        const FP halfDt;
     };
 
     template<class TGrid>
@@ -54,65 +161,76 @@ namespace pfc
     public:
         CurrentDepositionCIC(double _dt) : CurrentDeposition<TGrid, CurrentDepositionCIC<TGrid>>(_dt) {}
 
-        void depositComponentCurrent(ScalarField<FP> & field, const Int3 & idx,
-            const FP & fieldBeforeDeposition, FormFactorCIC& formFactor)
-        {
-            field(idx.x, idx.y, idx.z) += formFactor.c[0][0] * formFactor.c[1][0] * formFactor.c[2][0]
-                * fieldBeforeDeposition;
-            field(idx.x + 1, idx.y, idx.z) += formFactor.c[0][1] * formFactor.c[1][0] * formFactor.c[2][0]
-                * fieldBeforeDeposition;
-            field(idx.x, idx.y + 1, idx.z) += formFactor.c[0][0] * formFactor.c[1][1] * formFactor.c[2][0]
-                * fieldBeforeDeposition;
-            field(idx.x, idx.y, idx.z + 1) += formFactor.c[0][0] * formFactor.c[1][0] * formFactor.c[2][1]
-                * fieldBeforeDeposition;
-            field(idx.x + 1, idx.y + 1, idx.z) += formFactor.c[0][1] * formFactor.c[1][1] * formFactor.c[2][0]
-                * fieldBeforeDeposition;
-            field(idx.x + 1, idx.y, idx.z + 1) += formFactor.c[0][1] * formFactor.c[1][0] * formFactor.c[2][1]
-                * fieldBeforeDeposition;
-            field(idx.x, idx.y + 1, idx.z + 1) += formFactor.c[0][0] * formFactor.c[1][1] * formFactor.c[2][1]
-                * fieldBeforeDeposition;
-            field(idx.x + 1, idx.y + 1, idx.z + 1) += formFactor.c[0][1] * formFactor.c[1][1] * formFactor.c[2][1]
-                * fieldBeforeDeposition;
-        }
-
         template<class T_Particle>
         void depositOneParticle(TGrid* grid, T_Particle* particle)
         {
+            
+            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * this->dt / 2.0);
+            Int3 baseGridIdx = grid->getBaseIndex(particlePosition);
+            LocalDepositionCIC<TGrid> Depositor(baseGridIdx, this, grid);
+            Depositor.depositCurrent(particle);
+        }
+    };
+
+    template<class TGrid>
+    class CurrentDepositionTSC;
+
+    template<class TGrid>
+    class LocalDepositionTSC : public LocalDeposition<TGrid, CurrentDepositionTSC<TGrid>, 5>
+    {
+    public:
+
+        LocalDepositionTSC(const Int3 & blockIdx, CurrentDepositionTSC<TGrid>* currentDeposition, TGrid* _grid)
+            : LocalDeposition<TGrid, CurrentDepositionTSC<TGrid>, 5>(blockIdx, currentDeposition, _grid),
+            halfDt((FP)0.5 * currentDeposition->dt) {}
+
+        template<class T_Particle>
+        void depositCurrent(T_Particle* particle)
+        {
+            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * halfDt);
+            FP3 current = (particle->getVelocity() * particle->getCharge() * particle->getWeight()) /
+                this->grid->steps.volume();
+
             Int3 idxJx, idxJy, idxJz;
             FP3 internalCoordsJx, internalCoordsJy, internalCoordsJz;
-            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * this->dt / 2.0);
+            idxJx = this->grid->getClosestIndexJx(particlePosition) - this->startGridIdx;
+            internalCoordsJx = this->grid->getClosestInternalCoordsJx(particlePosition);
 
-            FP3 current = (particle->getVelocity() * particle->getCharge() * particle->getWeight()) /
-                grid->steps.volume();
+            idxJy = this->grid->getClosestIndexJy(particlePosition) - this->startGridIdx;
+            internalCoordsJy = this->grid->getClosestInternalCoordsJy(particlePosition);
 
-            idxJx = grid->getIndexJx(particlePosition);
-            internalCoordsJx = grid->getInternalCoordsJx(particlePosition);
+            idxJz = this->grid->getClosestIndexJz(particlePosition) - this->startGridIdx;
+            internalCoordsJz = this->grid->getClosestInternalCoordsJz(particlePosition);
 
-            idxJy = grid->getIndexJy(particlePosition);
-            internalCoordsJy = grid->getInternalCoordsJy(particlePosition);
+            FormFactorTSC formFactorJx, formFactorJy, formFactorJz;
+            
+            formFactorJx(internalCoordsJx);
+            formFactorJy(internalCoordsJy);
+            formFactorJz(internalCoordsJz);
+            depositComponent(idxJx, current.x, formFactorJx, this->Jx);
+            depositComponent(idxJy, current.y, formFactorJy, this->Jy);
+            depositComponent(idxJz, current.z, formFactorJz, this->Jz);
+        }
 
-            idxJz = grid->getIndexJz(particlePosition);
-            internalCoordsJz = grid->getInternalCoordsJz(particlePosition);
+    private:
 
-            FormFactorCIC formFactor;
-            formFactor(internalCoordsJx);
-#pragma omp critical (CICJx)
-            {
-                depositComponentCurrent(grid->Jx, idxJx, current.x, formFactor);
-            }
-
-            formFactor(internalCoordsJy);
-#pragma omp critical (CICJy)
-            {
-                depositComponentCurrent(grid->Jy, idxJy, current.y, formFactor);
-            }
-
-            formFactor(internalCoordsJz);
-#pragma omp critical (CICJz)
-            {
-                depositComponentCurrent(grid->Jz, idxJz, current.z, formFactor);
+        void depositComponent(const Int3 & idx,
+            const FP & value, FormFactorTSC& formFactor, FP current[5][5][5])
+        {
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    for (int k = -1; k <= 1; k++) {
+                        current[idx.x + i][idx.y + j][idx.z + k] += 
+                            ( formFactor.c[0][i + 1] 
+                            * formFactor.c[1][j + 1]
+                            * formFactor.c[2][k + 1])
+                            * value;
+                    }
+                }
             }
         }
+
+        const FP halfDt;
     };
 
     template<class TGrid>
@@ -121,55 +239,14 @@ namespace pfc
     public:
         CurrentDepositionTSC(double _dt) : CurrentDeposition<TGrid, CurrentDepositionTSC<TGrid>>(_dt) {}
 
-        void depositComponentCurrent(ScalarField<FP> & field, const Int3 & idx,
-            const FP & fieldBeforeDeposition, FormFactorTSC& formFactor)
-        {
-            for (int i = -1; i <= 1; i++) {
-                for (int j = -1; j <= 1; j++) {
-                    for (int k = -1; k <= 1; k++) {
-                        field(idx.x + i, idx.y + j, idx.z + k) += (formFactor.c[0][i + 1] * formFactor.c[1][j + 1] *
-                            formFactor.c[2][k + 1]) * fieldBeforeDeposition;
-                    }
-                }
-            }
-        }
-
         template<class T_Particle>
         void depositOneParticle(TGrid* grid, T_Particle* particle)
         {
-            Int3 idxJx, idxJy, idxJz;
-            FP3 internalCoordsJx, internalCoordsJy, internalCoordsJz;
+            
             FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * this->dt / 2.0);
-
-            FP3 current = (particle->getVelocity() * particle->getCharge() * particle->getWeight()) /
-                grid->steps.volume();
-
-            idxJx = grid->getClosestIndexJx(particlePosition);
-            internalCoordsJx = grid->getClosestInternalCoordsJx(particlePosition);
-
-            idxJy = grid->getClosestIndexJy(particlePosition);
-            internalCoordsJy = grid->getClosestInternalCoordsJy(particlePosition);
-
-            idxJz = grid->getClosestIndexJz(particlePosition);
-            internalCoordsJz = grid->getClosestInternalCoordsJz(particlePosition);
-            FormFactorTSC formFactor;
-            formFactor(internalCoordsJx);
-#pragma omp critical (TSCJx)
-            {
-                depositComponentCurrent(grid->Jx, idxJx, current.x, formFactor);
-            }
-
-            formFactor(internalCoordsJy);
-#pragma omp critical (TSCJy)
-            {
-                depositComponentCurrent(grid->Jy, idxJy, current.y, formFactor);
-            }
-
-            formFactor(internalCoordsJz);
-#pragma omp critical (TSCJz)
-            {
-                depositComponentCurrent(grid->Jz, idxJz, current.z, formFactor);
-            }
+            Int3 baseGridIdx = grid->getBaseIndex(particlePosition);
+            LocalDepositionTSC<TGrid> Depositor(baseGridIdx, this, grid);
+            Depositor.depositCurrent(particle);
         }
     };
 }
