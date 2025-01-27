@@ -1,7 +1,7 @@
 #include "TestingUtility.h"
 
 #include "Constants.h"
-#include "FDTD.h"
+#include "Fdtd.h"
 #include "Particle.h"
 #include "ParticleGenerator.h"
 #include "Species.h"

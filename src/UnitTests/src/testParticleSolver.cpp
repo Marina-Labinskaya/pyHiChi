@@ -2,7 +2,7 @@
 
 #include "ParticleSolver.h"
 #include "Constants.h"
-#include "FDTD.h"
+#include "Fdtd.h"
 #include "Particle.h"
 
 using namespace pfc;

@@ -29,6 +29,7 @@ namespace pfc {
 
         ParticleType operator *() { return pPArray->operator[](index); }
         ParticleType operator *() const { return pPArray->operator[](index); }
+        void IteratorOnRawParticle(const typename pArray_t::ParticleType& particle){ pPArray->changeParticle(particle, index);};
         const iteratorPArray &operator ++() { ++index; return *this; }
         const iteratorPArray &operator --() { --index; return *this; }
         iteratorPArray operator ++(int) 
@@ -63,7 +64,7 @@ namespace pfc {
         bool operator  >=(const iteratorPArray &other) const
         { return index >= other.index; }
 
-        iteratorPArray & operator +(const size_t &add) const {
+        iteratorPArray operator +(const size_t &add) const {
             iteratorPArray copy(*this);
             copy.index += add;
             return copy;
@@ -72,7 +73,7 @@ namespace pfc {
             index += add;
             return *this;
         }
-        iteratorPArray & operator -(const size_t &add) const {
+        iteratorPArray operator -(const size_t &add) const {
             iteratorPArray copy(*this);
             copy.index -= add;
             return copy;
@@ -139,7 +140,11 @@ namespace pfc {
         inline ParticleProxyType operator[](int idx) 
         {
             return ParticleProxyType(particles[idx]);
-        } 
+        }
+
+        void changeParticle(const ParticleType& particle, int idx) {
+            particles[idx] = particle;
+        }
 
         inline ParticleProxyType back()
         { return operator[](this->size() - 1); }
@@ -281,6 +286,22 @@ namespace pfc {
             }
             
         }
+
+        inline void changeParticle(ConstParticleRef particle, int idx)
+        {
+            if (particle.getType() == typeIndex)
+            {
+                const PositionType position = particle.getPosition();
+                for (int d = 0; d < positionDimension; d++)
+                    positions[d][idx] = position[d];
+                const MomentumType p = particle.getP();
+                for (int d = 0; d < momentumDimension; d++)
+                    ps[d][idx] = p[d];
+                weights[idx] = particle.getWeight();
+                gammas[idx] = particle.getGamma();
+            }
+        }
+
         inline void popBack()
         {
             for (int d = 0; d < positionDimension; d++)

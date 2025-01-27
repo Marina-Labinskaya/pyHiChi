@@ -30,17 +30,17 @@ namespace pfc {
             WeightType weight = 1.0,
             TypeIndexType typeIndex = ParticleTypes::Electron)
         {
-            /*ifstream file("C:/Users/lifej/Desktop/programs/picador_new/release/1.0rc1/bin/Particles_picador.txt");
-            while (file) {
-                PositionType particlePosition;
-                MomentumType particleMomentum;
-                file >> particlePosition.x >> particlePosition.y >> particlePosition.z >> particleMomentum.x >> particleMomentum.y >> particleMomentum.z;
-                FP temperature = initialTemperature(particlePosition.x, particlePosition.y, particlePosition.z);
-                Particle3d newParticle(particlePosition, particleMomentum, weight, typeIndex);
-                particleArray->pushBack(newParticle);
-            }
+            // ifstream file("/home/spicastar618/source/unn/pyHiChi/build/ref/Particles_picador.txt");
+            // while (file) {
+            //     PositionType particlePosition;
+            //     MomentumType particleMomentum;
+            //     file >> particlePosition.x >> particlePosition.y >> particlePosition.z >> particleMomentum.x >> particleMomentum.y >> particleMomentum.z;
+            //     FP temperature = initialTemperature(particlePosition.x, particlePosition.y, particlePosition.z);
+            //     Particle3d newParticle(particlePosition, particleMomentum, weight, typeIndex);
+            //     particleArray->pushBack(newParticle);
+            // }
 
-            file.close();*/
+            // file.close();
 
             Int3 startIndex = grid->getNumExternalLeftCells();
             Int3 endIndex = grid->getNumExternalLeftCells() + grid->numInternalCells;
