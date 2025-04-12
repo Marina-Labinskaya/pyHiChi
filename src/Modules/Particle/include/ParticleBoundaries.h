@@ -20,7 +20,8 @@ namespace pfc {
     };
 
     template<class T_ParticleArray, GridTypes gridType>
-    void PeriodicalParticleBoundaryConditions::updateParticlePosition(Grid<FP, gridType> * grid, T_ParticleArray* particleArray)
+    void PeriodicalParticleBoundaryConditions::updateParticlePosition(Grid<FP, gridType> * grid,
+        T_ParticleArray* particleArray)
     {
         typedef typename T_ParticleArray::ParticleProxyType ParticleProxyType;
         typedef typename VectorTypeHelper<Dimension::Three, Real>::Type PositionType;

@@ -16,7 +16,7 @@ set(particleModules_headers
 
     ${PARTICLEMODULES_HEADER_DIR}/Merging.h
     ${PARTICLEMODULES_HEADER_DIR}/Thinning.h
-    ${PARTICLEMODULES_HEADER_DIR}/ParticleSolver.h
+    ${PARTICLEMODULES_HEADER_DIR}/ParticleBoundaries.h
     ${PARTICLEMODULES_HEADER_DIR}/ParticleGenerator.h
     ${PARTICLEMODULES_HEADER_DIR}/ParticleSorting.h
 )

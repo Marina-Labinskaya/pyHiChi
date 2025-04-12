@@ -1,4 +1,4 @@
-// // Python-Interface.cpp : Defines exported functions for the dll-file.
+// Python-Interface.cpp : Defines exported functions for the dll-file.
 //
 
 #include <algorithm>
@@ -9,19 +9,17 @@
 
 #include "pyField.h"
 #include "pyFieldMacroses.h"
+#include "pyModule.h"
 
 #include "Constants.h"
-#include "CurrentBoundaries.h"
-#include "CurrentDeposition.h"
 #include "Dimension.h"
 #include "Ensemble.h"
 #include "Fdtd.h"
 #include "FieldGenerator.h"
 #include "FieldValue.h"
 #include "Merging.h"
+#include "Particle.h"
 #include "ParticleArray.h"
-#include "ParticleGenerator.h"
-#include "ParticleSolver.h"
 #include "ParticleTypes.h"
 #include "Pstd.h"
 #include "Psatd.h"
@@ -33,77 +31,6 @@
 #include "Enums.h"
 #include "Mapping.h"
 #include "FieldConfiguration.h"
-
-
-#define SET_FIELD_CONFIGURATIONS_GRID_METHODS(pyFieldType)                \
-    .def("set", &pyFieldType::setFieldConfiguration<NullField>,           \
-        py::arg("field_configuration"))                                   \
-    .def("set", &pyFieldType::setFieldConfiguration<TightFocusingField>,  \
-        py::arg("field_configuration")) 
-
-
-#define SET_COMPUTATIONAL_GRID_METHODS(pyFieldType)                        \
-     .def(py::init<FP3, FP3, FP3, FP>(),                                   \
-        py::arg("grid_size"), py::arg("min_coords"),                       \
-        py::arg("spatial_steps"), py::arg("time_step"))                    \
-    .def("set_J", &pyFieldType::setJ)                                      \
-    .def("set_E", &pyFieldType::setE)                                      \
-    .def("set_B", &pyFieldType::setB)                                      \
-    .def("set_J", &pyFieldType::pySetJ)                                    \
-    .def("set_E", &pyFieldType::pySetE)                                    \
-    .def("set_B", &pyFieldType::pySetB)                                    \
-    .def("set_J", &pyFieldType::setJxyz,                                   \
-        py::arg("Jx"), py::arg("Jy"), py::arg("Jz"))                       \
-    .def("set_E", &pyFieldType::setExyz,                                   \
-        py::arg("Ex"), py::arg("Ey"), py::arg("Ez"))                       \
-    .def("set_B", &pyFieldType::setBxyz,                                   \
-        py::arg("Bx"), py::arg("By"), py::arg("Bz"))                       \
-    .def("set_J", &pyFieldType::pySetJxyz,                                 \
-        py::arg("Jx"), py::arg("Jy"), py::arg("Jz"))                       \
-    .def("set_E", &pyFieldType::pySetExyz,                                 \
-        py::arg("Ex"), py::arg("Ey"), py::arg("Ez"))                       \
-    .def("set_B", &pyFieldType::pySetBxyz,                                 \
-        py::arg("Bx"), py::arg("By"), py::arg("Bz"))                       \
-    .def("set_J", &pyFieldType::setJxyzt,                                  \
-        py::arg("Jx"), py::arg("Jy"), py::arg("Jz"), py::arg("t"))         \
-    .def("set_E", &pyFieldType::setExyzt,                                  \
-        py::arg("Ex"), py::arg("Ey"), py::arg("Ez"), py::arg("t"))         \
-    .def("set_B", &pyFieldType::setBxyzt,                                  \
-        py::arg("Bx"), py::arg("By"), py::arg("Bz"), py::arg("t"))         \
-    SET_FIELD_CONFIGURATIONS_GRID_METHODS(pyFieldType)
-
-
-#define SET_COMMON_FIELD_METHODS(pyFieldType)                             \
-    .def("change_time_step", &pyFieldType::changeTimeStep,                \
-        py::arg("time_step"))                                             \
-    .def("refresh", &pyFieldType::refresh)                                \
-    .def("set_time", &pyFieldType::setTime, py::arg("time"))              \
-    .def("get_time", &pyFieldType::getTime)
-
-
-#define SET_SUM_AND_MAP_FIELD_METHODS(pyFieldType)                        \
-    .def("apply_mapping", [](std::shared_ptr<pyFieldType> self,           \
-        std::shared_ptr<Mapping> mapping) {                               \
-        return self->applyMapping(                                        \
-            std::static_pointer_cast<pyFieldBase>(self), mapping          \
-            );                                                            \
-    }, py::arg("mapping"))                                                \
-    .def("__add__", [](std::shared_ptr<pyFieldType> self,                 \
-        std::shared_ptr<pyFieldBase> other) {                             \
-        return std::make_shared<pySumField>(                              \
-            std::static_pointer_cast<pyFieldBase>(self), other            \
-            );                                                            \
-    }, py::is_operator())                                                 \
-    .def("__mul__", [](std::shared_ptr<pyFieldType> self, FP factor) {    \
-        return std::make_shared<pyMulField>(                              \
-            std::static_pointer_cast<pyFieldBase>(self), factor           \
-            );                                                            \
-    }, py::is_operator())                                                 \
-    .def("__rmul__", [](std::shared_ptr<pyFieldType> self, FP factor) {   \
-        return std::make_shared<pyMulField>(                              \
-            std::static_pointer_cast<pyFieldBase>(self), factor           \
-            );                                                            \
-    }, py::is_operator())
 
 
 namespace py = pybind11;
@@ -181,7 +108,7 @@ PYBIND11_MODULE(pyHiChi, object) {
         .def_readwrite("z", &FP3::z)
         ;
 
-    object.def("cross", (const Vector3<FP>(*)(const Vector3Proxy<FP>&, const Vector3Proxy<FP>&)) cross);
+    object.def("cross", (const Vector3<FP> (*)(const Vector3Proxy<FP>&, const Vector3Proxy<FP>&)) cross);
     object.def("cross", (FP3(*)(const FP3&, const FP3&)) cross);
     object.def("dot", (FP(*)(const Vector3Proxy<FP>&, const Vector3Proxy<FP>&)) dot);
     object.def("dot", (FP(*)(const FP3&, const FP3&)) dot);
@@ -318,43 +245,42 @@ PYBIND11_MODULE(pyHiChi, object) {
         .def(py::init<pyYeeField*, double>())
         .def("__call__", (void (pyCurrentDepositionCIC<YeeGrid, FDTD>::*)(ParticleArray3d*)) &pyCurrentDepositionCIC<YeeGrid, FDTD>::operator())
         .def("getJ", &pyCurrentDepositionCIC<YeeGrid, FDTD>::getJ)
-
         ;
 
     // ------------------- periodical conditions for current --------
 
-    py::class_<pyPeriodicalCurrentBC<YeeGrid, FDTD, YeeGridType>>(object, "periodical_J_BC")
+    py::class_<pyPeriodicalCurrentBC<FDTD>>(object, "periodical_J_BC")
         .def(py::init<pyYeeField*>())
-        .def("update", &pyPeriodicalCurrentBC<YeeGrid, FDTD, YeeGridType>::update)
+        .def("update", &pyPeriodicalCurrentBC<FDTD>::update)
         ;
 
     // ------------------ periodical conditions for particles --------
 
-    py::class_<pyPeriodicalParticleBoundaryConditions<YeeGrid, FDTD>>(object, "periodical_particle_BC")
+    py::class_<pyPeriodicalParticleBoundaryConditions<FDTD>>(object, "periodical_particle_BC")
         .def(py::init<pyYeeField*>())
-        .def("update", (void (pyPeriodicalParticleBoundaryConditions<YeeGrid, FDTD>::*)(ParticleArray3d*)) &pyPeriodicalParticleBoundaryConditions<YeeGrid, FDTD>::update)
+        .def("update", (void (pyPeriodicalParticleBoundaryConditions<FDTD>::*)(ParticleArray3d*)) &pyPeriodicalParticleBoundaryConditions<FDTD>::update)
         ;
 
     // ------------------particle generator ------------------------
 
-    py::class_<pyParticleGenerator<YeeGrid, FDTD>>(object, "ParticleGenerator")
+    py::class_<pyParticleGenerator<FDTD>>(object, "ParticleGenerator")
         .def(py::init<pyYeeField*>())
-        .def("__call__", (void (pyParticleGenerator<YeeGrid, FDTD>::*)(ParticleArray3d*, int64_t, int64_t, FP, FP, FP, FP, ParticleTypes)) &pyParticleGenerator<YeeGrid, FDTD>::operator())
+        .def("__call__", (void (pyParticleGenerator<FDTD>::*)(ParticleArray3d*, int64_t, int64_t, FP, FP, FP, FP, ParticleTypes)) &pyParticleGenerator<FDTD>::operator())
         ;
 
     // -------------------interpolation-------------------------------
 
-    py::class_<pyInterpolation<YeeGrid, FDTD>>(object, "InterpolationCIC")
+    py::class_<pyInterpolation<FDTD>>(object, "InterpolationCIC")
         .def(py::init<pyYeeField*>())
-        .def("getExCIC", &pyInterpolation<YeeGrid, FDTD>::getExCIC)
-        .def("getEyCIC", &pyInterpolation<YeeGrid, FDTD>::getEyCIC)
-        .def("getEzCIC", &pyInterpolation<YeeGrid, FDTD>::getEzCIC)
-        .def("getBxCIC", &pyInterpolation<YeeGrid, FDTD>::getBxCIC)
-        .def("getByCIC", &pyInterpolation<YeeGrid, FDTD>::getByCIC)
-        .def("getBzCIC", &pyInterpolation<YeeGrid, FDTD>::getBzCIC)
-        .def("getJxCIC", &pyInterpolation<YeeGrid, FDTD>::getJxCIC)
-        .def("getJyCIC", &pyInterpolation<YeeGrid, FDTD>::getJyCIC)
-        .def("getJzCIC", &pyInterpolation<YeeGrid, FDTD>::getJzCIC)
+        .def("getExCIC", &pyInterpolation<FDTD>::getExCIC)
+        .def("getEyCIC", &pyInterpolation<FDTD>::getEyCIC)
+        .def("getEzCIC", &pyInterpolation<FDTD>::getEzCIC)
+        .def("getBxCIC", &pyInterpolation<FDTD>::getBxCIC)
+        .def("getByCIC", &pyInterpolation<FDTD>::getByCIC)
+        .def("getBzCIC", &pyInterpolation<FDTD>::getBzCIC)
+        .def("getJxCIC", &pyInterpolation<FDTD>::getJxCIC)
+        .def("getJyCIC", &pyInterpolation<FDTD>::getJyCIC)
+        .def("getJzCIC", &pyInterpolation<FDTD>::getJzCIC)
         ;
 
     // -------------------------- QED ---------------------------
@@ -384,7 +310,7 @@ PYBIND11_MODULE(pyHiChi, object) {
         ;
 
     // ------------------- thinnings -------------------
-
+   
     py::enum_<Thinning<ParticleArray3d>::Features>(object, "Conserve")
         .value("momentum", Thinning<ParticleArray3d>::Features::Momentum)
         .value("position", Thinning<ParticleArray3d>::Features::Position)
@@ -393,7 +319,7 @@ PYBIND11_MODULE(pyHiChi, object) {
         .value("dis_position", Thinning<ParticleArray3d>::Features::Dispersion_Position)
         .value("dis_energy", Thinning<ParticleArray3d>::Features::Dispersion_Energy)
         .export_values()
-        ;
+        ; 
 
     py::class_<Thinning<ParticleArray3d>>(object, "Thinout")
         .def(py::init<>())
@@ -403,7 +329,7 @@ PYBIND11_MODULE(pyHiChi, object) {
         .def("energy_conservative_thinning", &Thinning<ParticleArray3d>::energyConservative)
         .def("conservative_thinning", &Thinning<ParticleArray3d>::thinningConservative)
         .def("k_means_mergining", &Merging<ParticleArray3d>::merge_with_kmeans)
-        ;
+        ; 
 
     // ------------------- mappings -------------------
 
@@ -424,7 +350,7 @@ PYBIND11_MODULE(pyHiChi, object) {
         .def("get_inverse_coords", &PeriodicalMapping::getInverseCoords, py::arg("coords"),
             py::arg("time") = 0.0, py::arg("status") = 0)
         ;
-
+    
     py::class_<RotationMapping, std::shared_ptr<RotationMapping>>(object, "RotationMapping", pyMapping)
         .def(py::init<CoordinateEnum, FP>(), py::arg("axis"), py::arg("angle"))
         .def("get_direct_coords", &RotationMapping::getDirectCoords, py::arg("coords"),
@@ -825,7 +751,7 @@ PYBIND11_MODULE(pyHiChi, object) {
         ;
 
     py::class_<TightFocusingField>(object, "TightFocusingField")
-        .def(py::init<FP, FP, FP, FP, FP, FP>(),
+        .def(py::init<FP, FP, FP, FP, FP, FP>(), 
             py::arg("f_number"), py::arg("R0"), py::arg("wavelength"), py::arg("pulselength"),
             py::arg("total_power"), py::arg("edge_smoothing_angle"))
         .def(py::init<FP, FP, FP, FP, FP, FP, FP3>(),
