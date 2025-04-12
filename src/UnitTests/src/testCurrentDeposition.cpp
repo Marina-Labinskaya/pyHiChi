@@ -8,7 +8,7 @@
 #include "FieldValue.h"
 #include "Particle.h"
 #include "ParticleGenerator.h"
-#include "ParticleSolver.h"
+#include "ParticleBoundaries.h"
 #include "ParticleSorting.h"
 #include "Pusher.h"
 #include <fstream>
