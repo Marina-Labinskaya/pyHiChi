@@ -20,7 +20,7 @@ add_executable(tests
     src/testParticle.cpp
     src/testParticleArray.cpp
     src/testParticleProxy.cpp
-    src/testParticleSolver.cpp
+    src/testParticleBoundaries.cpp
     src/testPML.cpp
     src/testPusherAndHandler.cpp
     src/testSaveLoadParticle.cpp
