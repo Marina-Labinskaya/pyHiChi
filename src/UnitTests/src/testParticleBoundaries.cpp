@@ -1,6 +1,6 @@
 #include "TestingUtility.h"
 
-#include "ParticleSolver.h"
+#include "ParticleBoundaries.h"
 #include "Constants.h"
 #include "Fdtd.h"
 #include "Particle.h"
