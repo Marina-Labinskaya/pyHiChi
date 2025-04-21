@@ -6,10 +6,11 @@
 #include "ParticleArray.h"
 #include "Particle.h"
 #include <iostream>
+#include <vector>
 
 namespace pfc
 {
-    template<class TGrid, class DerivedClass>
+    template<class TGrid, class DerivedClass, class LocalDerivedClass>
     class CurrentDeposition
     {
     public:
@@ -17,7 +18,7 @@ namespace pfc
             NOT_USE_ZEROIZEJ, USE_ZEROIZEJ
         };
 
-        CurrentDeposition(double _dt) : dt(_dt) {}
+        CurrentDeposition(double _dt) : halfDt(0.5 * _dt) {}
 
         template<class T_Particle>
         void operator()(TGrid* grid, const T_Particle& particle,
@@ -27,22 +28,56 @@ namespace pfc
             static_cast<DerivedClass*>(this)->depositOneParticle(grid, &particle);
         }
 
+//         template<class T_ParticleArray>
+//         void operator()(TGrid* grid, T_ParticleArray* particleArray) {
+//             typedef typename T_ParticleArray::ParticleProxyType ParticleProxyType;
+//             grid->zeroizeJ();
+//             LocalDerivedClass Depositor(Int3(0,0,0),
+//                 static_cast<DerivedClass*>(this), grid);
+// #pragma omp declare reduction (add_currents : LocalDerivedClass : omp_out.addCurrents()) \
+//     initializer(omp_priv = omp_orig)
+// #pragma omp parallel for reduction(add_currents: Depositor)
+//             for (int i = 0; i < particleArray->size(); i++) {
+//                 ParticleProxyType particle = (*particleArray)[i];
+//                 Int3 baseGridIdx = grid->getBaseIndex(
+//                     particle.getPosition() - (particle.getVelocity() * halfDt));
+//                 if (Depositor.baseGridIdx != baseGridIdx) {
+//                     Depositor.addCurrents();
+//                     Depositor.setNewGridCell(baseGridIdx);
+//                 }
+//                 static_cast<DerivedClass*>(this)->depositOneParticle(grid, &particle, Depositor);
+//             }
+//         }
+
         template<class T_ParticleArray>
         void operator()(TGrid* grid, T_ParticleArray* particleArray) {
             typedef typename T_ParticleArray::ParticleProxyType ParticleProxyType;
             grid->zeroizeJ();
+            int num_threads = omp_get_max_threads();
+            std::vector<LocalDerivedClass> Depositor(num_threads, LocalDerivedClass(Int3(0,0,0),
+               static_cast<DerivedClass*>(this), grid));
 #pragma omp parallel for
             for (int i = 0; i < particleArray->size(); i++) {
+                int thread_num = omp_get_thread_num();
                 ParticleProxyType particle = (*particleArray)[i];
-                static_cast<DerivedClass*>(this)->depositOneParticle(grid, &particle);
+                Int3 baseGridIdx = grid->getBaseIndex(
+                    particle.getPosition() - (particle.getVelocity() * halfDt));
+                if (Depositor[thread_num].baseGridIdx != baseGridIdx) {
+                    Depositor[thread_num].addCurrents();
+                    Depositor[thread_num].setNewGridCell(baseGridIdx);
+                }
+                static_cast<DerivedClass*>(this)->depositOneParticle(grid, &particle, Depositor[thread_num]);
             }
+#pragma omp parallel for
+           for (int i = 0; i < num_threads; ++i)
+               Depositor[i].addCurrents();
         }
 
 
         template<class T_Particle>
         void depositOneParticle(TGrid* grid, T_Particle* particle) {}
 
-        const double dt;
+        const double halfDt;
     };
 
     template<class TGrid, class TCurrentDeposition, int BlockSize>
@@ -52,11 +87,36 @@ namespace pfc
 
         static const int blockSize = BlockSize;
 
+        LocalDeposition():
+            baseGridIdx(Int3(0,0,0)), grid(nullptr), halfDt(0.0),
+            startGridIdx(Int3(0,0,0)), blockOffset(0) {
+            for (int i = 0; i < this->blockSize; ++i)
+                for (int j = 0; j < this->blockSize; ++j)
+                    for (int k = 0; k < this->blockSize; ++k)
+                    {
+                        Jx[i][j][k] = 0;
+                        Jy[i][j][k] = 0;
+                        Jz[i][j][k] = 0;
+                    }
+        }
+
+        LocalDeposition(const LocalDeposition& deposition):
+            baseGridIdx(deposition.baseGridIdx), grid(deposition.grid), halfDt(deposition.halfDt),
+            startGridIdx(deposition.startGridIdx), blockOffset(deposition.blockOffset) {
+                for (int i = 0; i < this->blockSize; ++i)
+                    for (int j = 0; j < this->blockSize; ++j)
+                        for (int k = 0; k < this->blockSize; ++k)
+                        {
+                            Jx[i][j][k] = 0;
+                            Jy[i][j][k] = 0;
+                            Jz[i][j][k] = 0;
+                        }
+            }
+
         LocalDeposition(const Int3& _baseGridIdx, TCurrentDeposition* currentDeposition, TGrid* _grid) :
-            baseGridIdx(_baseGridIdx)
+            baseGridIdx(_baseGridIdx), grid(_grid), halfDt(currentDeposition->halfDt)
         {            
-            grid = _grid;
-            int blockOffset = (blockSize + 1) / 2;
+            blockOffset = (blockSize + 1) / 2;
             startGridIdx = baseGridIdx - Int3(blockOffset, blockOffset, blockOffset); // if startGridIdx < 0 ???
 
             for (int i = 0; i < this->blockSize; ++i)
@@ -69,7 +129,12 @@ namespace pfc
                     }
         }
 
-        ~LocalDeposition()
+        void setNewGridCell(const Int3& _baseGridIdx) {
+            baseGridIdx = _baseGridIdx;
+            startGridIdx = baseGridIdx - Int3(blockOffset, blockOffset, blockOffset);
+        }
+
+        void addCurrents()
         {
             for (int i = 0; i < blockSize; ++i)
                 for (int j = 0; j < blockSize; ++j)
@@ -83,18 +148,29 @@ namespace pfc
                         #pragma omp atomic
                         grid->Jz(gridIdx) += Jz[i][j][k];
                     }
+
+            for (int i = 0; i < this->blockSize; ++i)
+                for (int j = 0; j < this->blockSize; ++j)
+                    for (int k = 0; k < this->blockSize; ++k)
+                    {
+                        Jx[i][j][k] = 0;
+                        Jy[i][j][k] = 0;
+                        Jz[i][j][k] = 0;
+                    }
         }
 
         template<class TParticle>
         void depositCurrent(const TParticle& particle) {}
-
+        Int3 baseGridIdx;
     protected:
 
         FP Jx[blockSize][blockSize][blockSize];
         FP Jy[blockSize][blockSize][blockSize];
         FP Jz[blockSize][blockSize][blockSize];
         TGrid* grid;
-        Int3 baseGridIdx, startGridIdx;
+        Int3 startGridIdx;
+        int blockOffset;
+        const double halfDt;
     };
 
     template<class TGrid>
@@ -104,14 +180,17 @@ namespace pfc
     class LocalDepositionCIC : public LocalDeposition<TGrid, CurrentDepositionCIC<TGrid>, 4>
     {
     public:
+        LocalDepositionCIC() : LocalDeposition<TGrid, CurrentDepositionCIC<TGrid>, 4>() {}
+        LocalDepositionCIC(const LocalDepositionCIC& deposition):
+            LocalDeposition<TGrid, CurrentDepositionCIC<TGrid>, 4>(
+            static_cast<LocalDeposition<TGrid, CurrentDepositionCIC<TGrid>, 4>>(deposition)) {} 
         LocalDepositionCIC(const Int3& blockIdx, CurrentDepositionCIC<TGrid>* currentDeposition, TGrid* _grid)
-            : LocalDeposition<TGrid, CurrentDepositionCIC<TGrid>, 4>(blockIdx, currentDeposition, _grid),
-            halfDt((FP)0.5 * currentDeposition->dt) {}
+            : LocalDeposition<TGrid, CurrentDepositionCIC<TGrid>, 4>(blockIdx, currentDeposition, _grid) {}
 
         template<class T_Particle>
         void depositCurrent(T_Particle* particle)
         {
-            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * halfDt);
+            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * this->halfDt);
             FP3 current = (particle->getVelocity() * particle->getCharge() * particle->getWeight()) /
                 this->grid->steps.volume();
 
@@ -152,22 +231,22 @@ namespace pfc
                 }
             }
         }
-        const FP halfDt;
     };
 
     template<class TGrid>
-    class CurrentDepositionCIC : public CurrentDeposition<TGrid, CurrentDepositionCIC<TGrid>>
+    class CurrentDepositionCIC : public CurrentDeposition<TGrid, CurrentDepositionCIC<TGrid>,
+        LocalDepositionCIC<TGrid>>
     {
     public:
-        CurrentDepositionCIC(double _dt) : CurrentDeposition<TGrid, CurrentDepositionCIC<TGrid>>(_dt) {}
+        CurrentDepositionCIC(double _dt) : CurrentDeposition<TGrid, CurrentDepositionCIC<TGrid>,
+            LocalDepositionCIC<TGrid>>(_dt) {}
 
         template<class T_Particle>
-        void depositOneParticle(TGrid* grid, T_Particle* particle)
+        void depositOneParticle(TGrid* grid, T_Particle* particle, LocalDepositionCIC<TGrid>& Depositor)
         {
-            
-            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * this->dt / 2.0);
-            Int3 baseGridIdx = grid->getBaseIndex(particlePosition);
-            LocalDepositionCIC<TGrid> Depositor(baseGridIdx, this, grid);
+            //FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * this->dt / 2.0);
+            //Int3 baseGridIdx = grid->getBaseIndex(particlePosition);
+            //LocalDepositionCIC<TGrid> Depositor(baseGridIdx, this, grid);
             Depositor.depositCurrent(particle);
         }
     };
@@ -181,13 +260,12 @@ namespace pfc
     public:
 
         LocalDepositionTSC(const Int3 & blockIdx, CurrentDepositionTSC<TGrid>* currentDeposition, TGrid* _grid)
-            : LocalDeposition<TGrid, CurrentDepositionTSC<TGrid>, 5>(blockIdx, currentDeposition, _grid),
-            halfDt((FP)0.5 * currentDeposition->dt) {}
+            : LocalDeposition<TGrid, CurrentDepositionTSC<TGrid>, 5>(blockIdx, currentDeposition, _grid) {}
 
         template<class T_Particle>
         void depositCurrent(T_Particle* particle)
         {
-            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * halfDt);
+            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * this->halfDt);
             FP3 current = (particle->getVelocity() * particle->getCharge() * particle->getWeight()) /
                 this->grid->steps.volume();
 
@@ -229,23 +307,23 @@ namespace pfc
                 }
             }
         }
-
-        const FP halfDt;
     };
 
     template<class TGrid>
-    class CurrentDepositionTSC : public CurrentDeposition<TGrid, CurrentDepositionTSC<TGrid>>
+    class CurrentDepositionTSC : public CurrentDeposition<TGrid, CurrentDepositionTSC<TGrid>,
+        LocalDepositionTSC<TGrid>>
     {
     public:
-        CurrentDepositionTSC(double _dt) : CurrentDeposition<TGrid, CurrentDepositionTSC<TGrid>>(_dt) {}
+        CurrentDepositionTSC(double _dt) : CurrentDeposition<TGrid, CurrentDepositionTSC<TGrid>,
+            LocalDepositionTSC<TGrid>>(_dt) {}
 
         template<class T_Particle>
-        void depositOneParticle(TGrid* grid, T_Particle* particle)
+        void depositOneParticle(TGrid* grid, T_Particle* particle, LocalDepositionTSC<TGrid>& Depositor)
         {
             
-            FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * this->dt / 2.0);
-            Int3 baseGridIdx = grid->getBaseIndex(particlePosition);
-            LocalDepositionTSC<TGrid> Depositor(baseGridIdx, this, grid);
+            //FP3 particlePosition = particle->getPosition() - (particle->getVelocity() * this->dt / 2.0);
+            //Int3 baseGridIdx = grid->getBaseIndex(particlePosition);
+            //LocalDepositionTSC<TGrid> Depositor(baseGridIdx, this, grid);
             Depositor.depositCurrent(particle);
         }
     };
