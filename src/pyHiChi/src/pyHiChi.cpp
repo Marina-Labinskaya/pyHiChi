@@ -265,7 +265,7 @@ PYBIND11_MODULE(pyHiChi, object) {
 
     py::class_<pyParticleGenerator<FDTD>>(object, "ParticleGenerator")
         .def(py::init<pyYeeField*>())
-        .def("__call__", (void (pyParticleGenerator<FDTD>::*)(ParticleArray3d*, int64_t, int64_t, FP, FP, FP, FP, ParticleTypes)) &pyParticleGenerator<FDTD>::operator())
+        .def("__call__", (void (pyParticleGenerator<FDTD>::*)(ParticleArray3d*, int64_t, int64_t, FP, ParticleTypes)) &pyParticleGenerator<FDTD>::operator())
         ;
 
     // -------------------interpolation-------------------------------

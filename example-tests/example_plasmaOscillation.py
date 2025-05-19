@@ -1,13 +1,13 @@
 import sys
-sys.path.append("../bin/")
+sys.path.append("../bin")
 import pyHiChi as hichi
 
 import numpy as np
 import math as ma
 import numba
-from numba import cfunc, types, carray
+from numba import cfunc
 
-import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
 
 nx = 64
 ny = 8
@@ -77,7 +77,6 @@ def InitialTemperatureFunc(x, y, z):
 
 def get_fields():
     global field, x, nx
-    #print(field)
     Ex = np.zeros(shape=(nx))
     for ix in range(nx):
         coord_x = hichi.Vector3d(x[ix], 0.0, 0.0)
@@ -90,17 +89,14 @@ def get_particle_density(particleArray):
     for k in range(nx):
         electronCount = 0
         minCellCoords = min_coords.x + k * dx
-        #print("minCoords= ", minCellCoords)
         maxCellCoords = min_coords.x + (k + 1) * dx
 
         for j in range(particleArray.size()):
-            #print("x= ",particleArray[j].get_position().x)
-            if (particleArray[j].get_position().x >= minCellCoords) and (particleArray[j].get_position().x <= maxCellCoords):
+            if (particleArray[j].get_position().x >= minCellCoords) \
+                and (particleArray[j].get_position().x <= maxCellCoords):
                 electronCount = electronCount + 1
-                #print("count= ",electronCount)
-            electronDensity = electronCount * w  # density through plane
+        electronDensity = electronCount * w  # density through plane
         res.append(electronDensity)
-        #print(electronDensity)
     return res
 
 
@@ -109,7 +105,7 @@ field.set_B(valueBx, valueBy, valueBz)
 field.set_periodical_BC()
 
 pusher = hichi.BorisPusher()
-currentDeposition = hichi.DepositionCIC(field)
+currentDeposition = hichi.DepositionCIC(field, dt)
 
 J_BC = hichi.periodical_J_BC(field)
 particle_BC = hichi.periodical_particle_BC(field)
@@ -117,11 +113,11 @@ particle_BC = hichi.periodical_particle_BC(field)
 p_array = hichi.ParticleArray()
 
 particle_generator = hichi.ParticleGenerator(field)
-particle_generator(p_array, DensityFunc.address, InitialTemperatureFunc.address, numba.f4(0.0), numba.f4(0.0), numba.f4(0.0), numba.f4(w), hichi.ELECTRON)
+particle_generator(p_array, DensityFunc.address, InitialTemperatureFunc.address, numba.f4(w), hichi.ELECTRON)
 interpolation = hichi.InterpolationCIC(field)
 
 fig = plt.figure()
-def plotEx(field, index, title):
+def plotEx(index, title):
     ax = fig.add_subplot(1,2,index)
     ax.plot(x, get_fields())
     ax.set_ylabel("$E_x$")
@@ -131,9 +127,9 @@ def plotEx(field, index, title):
     
     ax.set_title(title)
 
-def plotParticleDens(particleArray, index, title):
+def plotParticleDens(density, index, title):
     ax = fig.add_subplot(1,2,index)
-    ax.plot(x, get_particle_density(particleArray))
+    ax.plot(x, density)
     ax.set_ylabel("$Particle Density$")
     ax.set_xlim((min_coords.x, L))
     ax.set_xlabel("$x$")
@@ -142,14 +138,7 @@ def plotParticleDens(particleArray, index, title):
     ax.set_title(title)
 
 nShow = 0
-
-N = 0
 for i in range (N + 1):
-    # if i == nShow:
-    #     plotEx(field, 1, "E_x")
-    #     #print(get_particle_density(p_array))
-    #     plotParticleDens(p_array, 2, "Particle Density")
-
     (Ex) = get_fields()
     # fdtd
     field.update_fields()
@@ -173,17 +162,15 @@ for i in range (N + 1):
     # periodical particle BC
     particle_BC.update(p_array)
 
-    # if i == 0:
-    #     plotEx(field, 1, "E_x")
-    #     #print(get_particle_density(p_array))
-    #     plotParticleDens(p_array, 2, "Particle Density")
-    # current deposition
-    currentDeposition(p_array, dt)
+    if i == nShow:
+        plotEx(1, "E_x")
+        plotParticleDens(get_particle_density(p_array), 2, "Particle Density")
+    #current deposition
+    currentDeposition(p_array)
     J_BC.update()
 
-    
-
-    print(i)
+    if i % 16 == 0:
+        print(i)
 
 plt.tight_layout()
 plt.show()

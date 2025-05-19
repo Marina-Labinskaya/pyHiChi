@@ -32,7 +32,6 @@ namespace pfc
         void operator()(TParticleArray* particleArray,
             int64_t particleDensity,
             int64_t initialTemperature,
-            FP init_mx, FP init_my, FP inti_mz,
             WeightType weight = 1.0,
             TypeIndexType typeIndex = ParticleTypes::Electron)
         {
@@ -41,7 +40,7 @@ namespace pfc
                 (FP(*)(FP, FP, FP))particleDensity,
                 (FP(*)(FP, FP, FP))initialTemperature,
                 [](FP init_mx, FP init_my, FP init_mz) -> 
-                    FP3 {return FP3(init_mx, init_my, init_mz); },
+                    FP3 {return FP3(0.0, 0.0, 0.0); },
                 weight, typeIndex);
         }
     };
