@@ -91,7 +91,7 @@ namespace pfc
             baseGridIdx(_baseGridIdx), grid(_grid), halfDt(currentDeposition->halfDt)
         {            
             blockOffset = (blockSize + 1) / 2;
-            startGridIdx = baseGridIdx - Int3(blockOffset, blockOffset, blockOffset); // if startGridIdx < 0 ???
+            startGridIdx = baseGridIdx - Int3(blockOffset, blockOffset, blockOffset);
 
             for (int i = 0; i < this->blockSize; ++i)
                 for (int j = 0; j < this->blockSize; ++j)
@@ -114,7 +114,8 @@ namespace pfc
                 for (int j = 0; j < blockSize; ++j)
                     for (int k = 0; k < blockSize; ++k)
                     {
-                        Int3 gridIdx = remainder(startGridIdx + Int3(i, j, k), grid->numCells);
+                        Int3 temp = startGridIdx + Int3(i, j, k);
+                        Int3 gridIdx = Int3(temp.x % grid->numCells.x, temp.y % grid->numCells.y, temp.z % grid->numCells.z);
                         #pragma omp atomic
                         grid->Jx(gridIdx) += Jx[i][j][k];
                         #pragma omp atomic
