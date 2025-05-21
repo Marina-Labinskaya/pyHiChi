@@ -114,14 +114,12 @@ namespace pfc
                 for (int j = 0; j < blockSize; ++j)
                     for (int k = 0; k < blockSize; ++k)
                     {
-                        Int3 temp = startGridIdx + Int3(i, j, k);
-                        Int3 gridIdx = Int3(temp.x % grid->numCells.x, temp.y % grid->numCells.y, temp.z % grid->numCells.z);
                         #pragma omp atomic
-                        grid->Jx(gridIdx) += Jx[i][j][k];
+                        grid->Jx(remainder(startGridIdx + Int3(i, j, k), grid->numCells)) += Jx[i][j][k];
                         #pragma omp atomic
-                        grid->Jy(gridIdx) += Jy[i][j][k];
+                        grid->Jy(remainder(startGridIdx + Int3(i, j, k), grid->numCells)) += Jy[i][j][k];
                         #pragma omp atomic
-                        grid->Jz(gridIdx) += Jz[i][j][k];
+                        grid->Jz(remainder(startGridIdx + Int3(i, j, k), grid->numCells)) += Jz[i][j][k];
                     }
 
             for (int i = 0; i < this->blockSize; ++i)
