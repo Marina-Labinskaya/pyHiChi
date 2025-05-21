@@ -87,32 +87,6 @@ namespace pfc
 
         static const int blockSize = BlockSize;
 
-        LocalDeposition():
-            baseGridIdx(Int3(0,0,0)), grid(nullptr), halfDt(0.0),
-            startGridIdx(Int3(0,0,0)), blockOffset(0) {
-            for (int i = 0; i < this->blockSize; ++i)
-                for (int j = 0; j < this->blockSize; ++j)
-                    for (int k = 0; k < this->blockSize; ++k)
-                    {
-                        Jx[i][j][k] = 0;
-                        Jy[i][j][k] = 0;
-                        Jz[i][j][k] = 0;
-                    }
-        }
-
-        LocalDeposition(const LocalDeposition& deposition):
-            baseGridIdx(deposition.baseGridIdx), grid(deposition.grid), halfDt(deposition.halfDt),
-            startGridIdx(deposition.startGridIdx), blockOffset(deposition.blockOffset) {
-                for (int i = 0; i < this->blockSize; ++i)
-                    for (int j = 0; j < this->blockSize; ++j)
-                        for (int k = 0; k < this->blockSize; ++k)
-                        {
-                            Jx[i][j][k] = 0;
-                            Jy[i][j][k] = 0;
-                            Jz[i][j][k] = 0;
-                        }
-            }
-
         LocalDeposition(const Int3& _baseGridIdx, TCurrentDeposition* currentDeposition, TGrid* _grid) :
             baseGridIdx(_baseGridIdx), grid(_grid), halfDt(currentDeposition->halfDt)
         {            
