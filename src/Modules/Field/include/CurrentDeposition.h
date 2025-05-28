@@ -61,7 +61,7 @@ namespace pfc
                 int thread_num = omp_get_thread_num();
                 ParticleProxyType particle = (*particleArray)[i];
                 Int3 baseGridIdx = grid->getBaseIndex(
-                    particle.getPosition());// - (particle.getVelocity() * halfDt));
+                    particle.getPosition() - (particle.getVelocity() * halfDt));
                 if (Depositor[thread_num].getBaseGridIdx() != baseGridIdx) {
                     Depositor[thread_num].addCurrents();
                     Depositor[thread_num].setNewGridCell(baseGridIdx);
