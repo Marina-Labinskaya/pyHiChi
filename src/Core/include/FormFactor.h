@@ -43,7 +43,7 @@ namespace pfc {
 
     class FormFactor {
     public:
-        void operator()(FP3 coords) {};
+        void operator()(const FP3& coords) {};
     };
 
     class FormFactorCIC : public FormFactor {
@@ -60,7 +60,7 @@ namespace pfc {
 
     class FormFactorTSC : public FormFactor {
     public:
-        void operator()(FP3 coords) {
+        void operator()(const FP3& coords) {
 
             for (int ii = 0; ii < 3; ii++)
                 c[0][ii] = formfactorTSC(FP(ii - 1) - coords.x);

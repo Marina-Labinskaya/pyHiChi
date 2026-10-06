@@ -28,27 +28,6 @@ namespace pfc
             static_cast<DerivedClass*>(this)->depositOneParticle(grid, &particle);
         }
 
-//         template<class T_ParticleArray>
-//         void operator()(TGrid* grid, T_ParticleArray* particleArray) {
-//             typedef typename T_ParticleArray::ParticleProxyType ParticleProxyType;
-//             grid->zeroizeJ();
-//             LocalDerivedClass Depositor(Int3(0,0,0),
-//                 static_cast<DerivedClass*>(this), grid);
-// #pragma omp declare reduction (add_currents : LocalDerivedClass : omp_out.addCurrents()) \
-//     initializer(omp_priv = omp_orig)
-// #pragma omp parallel for reduction(add_currents: Depositor)
-//             for (int i = 0; i < particleArray->size(); i++) {
-//                 ParticleProxyType particle = (*particleArray)[i];
-//                 Int3 baseGridIdx = grid->getBaseIndex(
-//                     particle.getPosition() - (particle.getVelocity() * halfDt));
-//                 if (Depositor.baseGridIdx != baseGridIdx) {
-//                     Depositor.addCurrents();
-//                     Depositor.setNewGridCell(baseGridIdx);
-//                 }
-//                 static_cast<DerivedClass*>(this)->depositOneParticle(grid, &particle, Depositor);
-//             }
-//         }
-
         template<class T_ParticleArray>
         void operator()(TGrid* grid, T_ParticleArray* particleArray) {
             typedef typename T_ParticleArray::ParticleProxyType ParticleProxyType;
@@ -116,12 +95,13 @@ namespace pfc
                 for (int j = 0; j < blockSize; ++j)
                     for (int k = 0; k < blockSize; ++k)
                     {
+                        Int3 idx = remainder(startGridIdx + Int3(i, j, k), grid->numCells);
                         #pragma omp atomic
-                        grid->Jx(remainder(startGridIdx + Int3(i, j, k), grid->numCells)) += Jx[i][j][k];
+                        grid->Jx(idx) += Jx[i][j][k];
                         #pragma omp atomic
-                        grid->Jy(remainder(startGridIdx + Int3(i, j, k), grid->numCells)) += Jy[i][j][k];
+                        grid->Jy(idx) += Jy[i][j][k];
                         #pragma omp atomic
-                        grid->Jz(remainder(startGridIdx + Int3(i, j, k), grid->numCells)) += Jz[i][j][k];
+                        grid->Jz(idx) += Jz[i][j][k];
                     }
 
             for (int i = 0; i < this->blockSize; ++i)
@@ -153,15 +133,11 @@ namespace pfc
     class CurrentDepositionCIC;
 
     template<class TGrid>
-    class LocalDepositionCIC : public LocalDeposition<TGrid, CurrentDepositionCIC<TGrid>, 4>
+    class LocalDepositionCIC : public LocalDeposition<TGrid, CurrentDepositionCIC<TGrid>, 3>
     {
     public:
-        LocalDepositionCIC() : LocalDeposition<TGrid, CurrentDepositionCIC<TGrid>, 4>() {}
-        LocalDepositionCIC(const LocalDepositionCIC& deposition):
-            LocalDeposition<TGrid, CurrentDepositionCIC<TGrid>, 4>(
-            static_cast<LocalDeposition<TGrid, CurrentDepositionCIC<TGrid>, 4>>(deposition)) {} 
         LocalDepositionCIC(const Int3& blockIdx, CurrentDepositionCIC<TGrid>* currentDeposition, TGrid* _grid)
-            : LocalDeposition<TGrid, CurrentDepositionCIC<TGrid>, 4>(blockIdx, currentDeposition, _grid) {}
+            : LocalDeposition<TGrid, CurrentDepositionCIC<TGrid>, 3>(blockIdx, currentDeposition, _grid) {}
 
         template<class T_Particle>
         void depositCurrent(T_Particle* particle)
@@ -193,7 +169,7 @@ namespace pfc
 
     private:
         void depositComponent(const Int3 & idx, const FP & value, FormFactorCIC& formFactor,
-            FP current[4][4][4])
+            FP current[3][3][3])
         {
             for (int i = 0; i <= 1; i++) {
                 for (int j = 0; j <= 1; j++) {
@@ -286,123 +262,6 @@ namespace pfc
     };
 
     template<class TGrid>
-    class CurrentDepositionVB;
-
-    template<class TGrid>
-    class LocalDepositionVB : public LocalDeposition<TGrid, CurrentDepositionVB<TGrid>, 3>
-    {
-    public:
-
-        LocalDepositionVB(
-            const Int3 & blockIdx, CurrentDepositionVB<TGrid>* currentDeposition, TGrid* _grid)
-            : LocalDeposition<TGrid, CurrentDepositionVB<TGrid>, 3>(blockIdx, currentDeposition, _grid) {}
-
-        template<class T_Particle>
-        void depositCurrent(T_Particle* particle)
-        {
-            //FP3 velocity = particle->getVelocity();
-            //FP3 oldCoords = particle->getPosition() - (particle->getVelocity() * (2 * this->halfDt));
-            //FP3 coords = particle->getPosition();
-            //Int3 oldLocalOrigin = this->grid->getClosestBaseIndex(oldCoords);
-            //Int3 localOrigin = this->grid->getClosestBaseIndex(particle->getPosition());
-            FP3 origin = this->grid->origin + this->startGridIdx * this->grid->steps;
-            FP charge = particle->getCharge() * particle->getWeight();// / this->grid->steps.volume() / (2 * this->halfDt);
-            FP3 coords = particle->getPosition();
-            FP3 velocity = particle->getVelocity();
-            FP3 oldCoords = coords - velocity * (2 * this->halfDt);
-            FP3 middleCellOrigin = origin + 0.5 * this->grid->steps;
-            Int3 oldLocalOrigin = truncate((oldCoords - middleCellOrigin) / this->grid->steps);
-            Int3 localOrigin = truncate((coords - middleCellOrigin) * this->grid->steps);
-            depositCurrentRecursive(coords, oldCoords, localOrigin, oldLocalOrigin, velocity, charge);
-        }
-
-    private:
-        void depositCurrentRecursive(FP3 coords, FP3 oldCoords, Int3 localOrigin, Int3 oldLocalOrigin, FP3 velocity,
-            FP charge)
-        {
-            FP3 origin = this->grid->origin + this->startGridIdx * this->grid->steps;
-            /* Find the axis that is first intersected.
-            Take max time as it is measured for backward movement. */
-            FP maxTimeToIntersection = 0;
-            int earliestIntersectionAxis = -1;
-            for (int d = 0; d < 3; d++)
-            {
-                if (localOrigin[d] != oldLocalOrigin[d])
-                {
-                    FP newOldCoords = origin[d] + 0.5 * this->grid->steps[d] +
-                        std::max(oldLocalOrigin[d], localOrigin[d]) * this->grid->steps[d];
-                    FP timeToIntersection = (coords[d] - newOldCoords) / velocity[d];
-                    if (timeToIntersection > maxTimeToIntersection)
-                    {
-                        maxTimeToIntersection = timeToIntersection;
-                        earliestIntersectionAxis = d;
-                    }
-                }
-            }
-            if (earliestIntersectionAxis >= 0)
-            {
-                /* Split particle along axis dim0; dim1 and dim2 are two other axes
-                (0 = x, 1 = y, 2 = z) */
-                const int dim0 = earliestIntersectionAxis;
-                const int dim1 = (dim0 + 1) % 3;
-                const int dim2 = (dim0 + 2) % 3;
-                FP3 newOldCoords;
-                newOldCoords[dim0] = (origin + 0.5 * this->grid->steps)[dim0] +
-                    std::max(oldLocalOrigin[dim0], localOrigin[dim0]) * this->grid->steps[dim0];
-                newOldCoords[dim1] = coords[dim1] - velocity[dim1] * maxTimeToIntersection;
-                newOldCoords[dim2] = coords[dim2] - velocity[dim2] * maxTimeToIntersection;
-                Int3 newOldLocalOrigin = oldLocalOrigin;
-                newOldLocalOrigin[dim0] = localOrigin[dim0];
-                depositCurrentRecursive(coords, newOldCoords, localOrigin, newOldLocalOrigin, velocity, charge);
-                coords = newOldCoords;
-                localOrigin = oldLocalOrigin;
-            }
-
-            FP3 delta = (coords - oldCoords) / this->grid->steps;
-            FP3 midway = (0.5 * (coords + oldCoords) - origin) / this->grid->steps -
-                FP3(localOrigin) - FP3(0.5, 0.5, 0.5);
-
-            FP3 iMidway = FP3(1.0, 1.0, 1.0) - midway;
-            FP3 csteps = charge * this->grid->steps;
-            FP3 delcs = delta * csteps;
-            FP3 csdelmid, csdelimid;
-            csdelmid[0] = delcs.x * midway.z;
-            csdelmid[1] = delcs.y * midway.z;
-            csdelmid[2] = delcs.z * midway.x;
-            csdelimid[0] = delcs.x * iMidway.z;
-            csdelimid[1] = delcs.y * iMidway.z;
-            csdelimid[2] = delcs.z * iMidway.x;
-            FP3 csdel = csteps * delta.x * delta.y * delta.z / FP3(12, 12, 12);
-            Int3 idx = localOrigin;
-            Int3 iIdx = idx + Int3(1, 1, 1);        
-
-            this->Jx[iIdx.x][iIdx.y][iIdx.z] += csdelmid[0] * midway.y + csdel.x;
-            this->Jx[iIdx.x][idx.y][iIdx.z] += csdelmid[0] * iMidway.y - csdel.x;
-            this->Jx[iIdx.x][iIdx.y][idx.z] += csdelimid[0] * midway.y - csdel.x;
-            this->Jx[iIdx.x][idx.y][idx.z] += csdelimid[0] * iMidway.y + csdel.x;
-
-            this->Jy[iIdx.x][iIdx.y][iIdx.z] += csdelmid[1] * midway.x + csdel.y;
-            this->Jy[idx.x][iIdx.y][iIdx.z] += csdelmid[1] * iMidway.x - csdel.y;
-            this->Jy[iIdx.x][iIdx.y][idx.z] += csdelimid[1] * midway.x - csdel.y;
-            this->Jy[idx.x][iIdx.y][idx.z] += csdelimid[1] * iMidway.x + csdel.y;
-
-            this->Jz[iIdx.x][iIdx.y][iIdx.z] += csdelmid[2] * midway.y + csdel.z;
-            this->Jz[iIdx.x][idx.y][iIdx.z] += csdelmid[2] * iMidway.y - csdel.z;
-            this->Jz[idx.x][iIdx.y][iIdx.z] += csdelimid[2] * midway.y - csdel.z;
-            this->Jz[idx.x][idx.y][iIdx.z] += csdelimid[2] * iMidway.y + csdel.z;
-        }
-    };
-
-    template<class TGrid>
-    class CurrentDepositionVB :
-        public CurrentDeposition<TGrid, CurrentDepositionVB<TGrid>, LocalDepositionVB<TGrid>>
-    {
-    public:
-        CurrentDepositionVB(double _dt) : 
-            CurrentDeposition<TGrid, CurrentDepositionVB<TGrid>, LocalDepositionVB<TGrid>>(_dt) {}
-    };
-
-    template<class TGrid>
     class CurrentDepositionZ1;
 
     template<class TGrid>
@@ -417,54 +276,47 @@ namespace pfc
         template<class T_Particle>
         void depositCurrent(T_Particle* particle)
         {
-            FP3 origin = this->grid->origin + this->startGridIdx * this->grid->steps;
-            FP3 coords = particle->getPosition();
-            FP3 oldCoords = particle->getPosition() - particle->getVelocity() * (2 * this->halfDt);
-            Int3 localOrigin = truncate((coords - origin) / this->grid->steps + FP3(0.5, 0.5, 0.5));
-            Int3 oldLocalOrigin = truncate((oldCoords - origin) / this->grid->steps + FP3(0.5, 0.5, 0.5));
-            //std::cout << truncate((coords - origin) / this->grid->steps) << std::endl;
-            //std::cout << "oldLocalOrigin: " << oldLocalOrigin << std::endl;
-            //std::cout << "localOrigin: " << localOrigin << std::endl;
-            FP charge = particle->getCharge() * particle->getWeight() / this->grid->steps.volume() / (2 * this->halfDt);
+            FP3 minPosition = this->grid->origin + this->startGridIdx * this->grid->steps;
+            FP3 position = particle->getPosition();
+            FP3 oldPosition = particle->getPosition() - particle->getVelocity() * (2 * this->halfDt);
+            Int3 localIndex = truncate((position - minPosition) / this->grid->steps + FP3(0.5, 0.5, 0.5));
+            Int3 oldLocalIndex = truncate((oldPosition - minPosition) / this->grid->steps + FP3(0.5, 0.5, 0.5));
+            FP current = particle->getCharge() * particle->getWeight() / this->grid->steps.volume() / (2 * this->halfDt);
             FP3 r;
-            for(int i = 0; i < 3; i++)
+            for (int i = 0; i < 3; ++i)
             {
-                if(oldLocalOrigin[i] == localOrigin[i]) r[i] = (coords[i] + oldCoords[i]) * (FP)0.5;
-                else r[i] = (oldLocalOrigin[i] + localOrigin[i]) * this->grid->steps[i] * (FP)0.5 + origin[i];
+                if(oldLocalIndex[i] == localIndex[i]) r[i] = (position[i] + oldPosition[i]) * (FP)0.5;
+                else r[i] = (oldLocalIndex[i] + localIndex[i]) * this->grid->steps[i] * (FP)0.5 + minPosition[i];
             }
 
-            FP3 F[2], W1[2], W2[2];
-            W1[0] = ((oldCoords + r) * (FP)0.5 - origin) / this->grid->steps - (FP3)oldLocalOrigin + FP3(0.5, 0.5, 0.5);
-            W1[1] = ((coords + r) * (FP)0.5 - origin) / this->grid->steps - (FP3)localOrigin + FP3(0.5, 0.5, 0.5);
-            W2[0] = FP3(1.0, 1.0, 1.0) - W1[0];
-            W2[1] = FP3(1.0, 1.0, 1.0) - W1[1];
-            F[0] = charge * (r - oldCoords);
-            F[1] = charge * (coords - r);
+            FP3 coeff[2], weight1[2], weight2[2];
+            weight1[0] = ((oldPosition + r) * (FP)0.5 - minPosition) / this->grid->steps - (FP3)oldLocalIndex + FP3(0.5, 0.5, 0.5);
+            weight1[1] = ((position + r) * (FP)0.5 - minPosition) / this->grid->steps - (FP3)localIndex + FP3(0.5, 0.5, 0.5);
+            weight2[0] = FP3(1.0, 1.0, 1.0) - weight1[0];
+            weight2[1] = FP3(1.0, 1.0, 1.0) - weight1[1];
+            coeff[0] = current * (r - oldPosition);
+            coeff[1] = current * (position - r);
 
             Int3 idx[2];
-            idx[0] = oldLocalOrigin;
-            idx[1] = localOrigin;
-            
-            // std::cout << "startGridIdx: " << this->startGridIdx << std::endl;
-            // std::cout << "baseGridIdx: " << this->baseGridIdx << std::endl;
-            // std::cout << "idx[0]: " << idx[0] << std::endl;
-            // std::cout << "idx[1]: " << idx[1] << std::endl;
+            idx[0] = oldLocalIndex;
+            idx[1] = localIndex;
+
             for(int i = 0; i < 2; i++)
             {
-                this->Jx[idx[i].x][idx[i].y]    [idx[i].z]     += F[i].x * W1[i].y * W1[i].z;
-                this->Jx[idx[i].x][idx[i].y - 1][idx[i].z]     += F[i].x * W2[i].y * W1[i].z;
-                this->Jx[idx[i].x][idx[i].y]    [idx[i].z - 1] += F[i].x * W1[i].y * W2[i].z;
-                this->Jx[idx[i].x][idx[i].y - 1][idx[i].z - 1] += F[i].x * W2[i].y * W2[i].z;
+                this->Jx[idx[i].x][idx[i].y]    [idx[i].z]     += coeff[i].x * weight1[i].y * weight1[i].z;
+                this->Jx[idx[i].x][idx[i].y - 1][idx[i].z]     += coeff[i].x * weight2[i].y * weight1[i].z;
+                this->Jx[idx[i].x][idx[i].y]    [idx[i].z - 1] += coeff[i].x * weight1[i].y * weight2[i].z;
+                this->Jx[idx[i].x][idx[i].y - 1][idx[i].z - 1] += coeff[i].x * weight2[i].y * weight2[i].z;
 
-                this->Jy[idx[i].x]    [idx[i].y][idx[i].z]     += F[i].y * W1[i].x * W1[i].z;
-                this->Jy[idx[i].x - 1][idx[i].y][idx[i].z]     += F[i].y * W2[i].x * W1[i].z;
-                this->Jy[idx[i].x]    [idx[i].y][idx[i].z - 1] += F[i].y * W1[i].x * W2[i].z;
-                this->Jy[idx[i].x - 1][idx[i].y][idx[i].z - 1] += F[i].y * W2[i].x * W2[i].z;
+                this->Jy[idx[i].x]    [idx[i].y][idx[i].z]     += coeff[i].y * weight1[i].x * weight1[i].z;
+                this->Jy[idx[i].x - 1][idx[i].y][idx[i].z]     += coeff[i].y * weight2[i].x * weight1[i].z;
+                this->Jy[idx[i].x]    [idx[i].y][idx[i].z - 1] += coeff[i].y * weight1[i].x * weight2[i].z;
+                this->Jy[idx[i].x - 1][idx[i].y][idx[i].z - 1] += coeff[i].y * weight2[i].x * weight2[i].z;
 
-                this->Jz[idx[i].x]    [idx[i].y]    [idx[i].z] += F[i].z * W1[i].x * W1[i].y;
-                this->Jz[idx[i].x - 1][idx[i].y]    [idx[i].z] += F[i].z * W2[i].x * W1[i].y;
-                this->Jz[idx[i].x]    [idx[i].y - 1][idx[i].z] += F[i].z * W1[i].x * W2[i].y;
-                this->Jz[idx[i].x - 1][idx[i].y - 1][idx[i].z] += F[i].z * W2[i].x * W2[i].y;
+                this->Jz[idx[i].x]    [idx[i].y]    [idx[i].z] += coeff[i].z * weight1[i].x * weight1[i].y;
+                this->Jz[idx[i].x - 1][idx[i].y]    [idx[i].z] += coeff[i].z * weight2[i].x * weight1[i].y;
+                this->Jz[idx[i].x]    [idx[i].y - 1][idx[i].z] += coeff[i].z * weight1[i].x * weight2[i].y;
+                this->Jz[idx[i].x - 1][idx[i].y - 1][idx[i].z] += coeff[i].z * weight2[i].x * weight2[i].y;
             }
         }
     };
@@ -492,87 +344,80 @@ namespace pfc
         template<class T_Particle>
         void depositCurrent(T_Particle* particle)
         {
-            FP3 coords = particle->getPosition();
-            FP3 minCoords = this->grid->origin + this->startGridIdx * this->grid->steps;
+            FP3 position = particle->getPosition();
+            FP3 minPosition = this->grid->origin + this->startGridIdx * this->grid->steps;
             
-            FP3 oldCoords = coords - particle->getVelocity() * (2 * this->halfDt);
-            Int3 localOrigin = truncate((coords - minCoords) / this->grid->steps);
-            Int3 oldLocalOrigin = truncate((oldCoords - minCoords) / this->grid->steps);
-            FP charge = particle->getCharge() * particle->getWeight() / this->grid->steps.volume();
+            FP3 oldPosition = position - particle->getVelocity() * (2 * this->halfDt);
+            Int3 localIndex = truncate((position - minPosition) / this->grid->steps);
+            Int3 oldLocalIndex = truncate((oldPosition - minPosition) / this->grid->steps);
+            FP current = particle->getCharge() * particle->getWeight() * particle->getVelocity() * (FP)0.5 
+                / this->grid->steps.volume();
 
             FP3 r;
             for (int i = 0; i < 3; i++)
             {
-                if (oldLocalOrigin[i] == localOrigin[i]) r[i] = (coords[i] + oldCoords[i]) * (FP)0.5;
-                else r[i] = std::max(oldLocalOrigin[i], localOrigin[i]) * this->grid->steps[i] + minCoords[i];
+                if (oldLocalIndex[i] == localIndex[i]) r[i] = (position[i] + oldPosition[i]) * (FP)0.5;
+                else r[i] = std::max(oldLocalIndex[i], localIndex[i]) * this->grid->steps[i] + minPosition[i];
             }
 
-            FP3 W[2];
-            W[0] = ((oldCoords + r) * (FP)0.5 - minCoords) / this->grid->steps - (FP3)oldLocalOrigin -
+            FP3 weight[2];
+            weight[0] = ((oldPosition + r) * (FP)0.5 - minPosition) / this->grid->steps - (FP3)oldLocalIndex -
                 FP3(0.5, 0.5, 0.5);
-            W[1] = ((coords + r) * (FP)0.5 - minCoords) / this->grid->steps - (FP3)localOrigin -
+            weight[1] = ((position + r) * (FP)0.5 - minPosition) / this->grid->steps - (FP3)localIndex -
                 FP3(0.5, 0.5, 0.5);
 
-            FP3 F[2][2];
-            FP3 cv = charge * particle->getVelocity() * (FP)0.5;
-            F[0][0] = cv * (FP3(0.5, 0.5, 0.5) - W[0]);
-            F[1][0] = cv * (FP3(0.5, 0.5, 0.5) - W[1]);
-            F[0][1] = cv * (FP3(0.5, 0.5, 0.5) + W[0]);
-            F[1][1] = cv * (FP3(0.5, 0.5, 0.5) + W[1]);
+            FP3 coeff[2][2];
+            coeff[0][0] = current * (FP3(0.5, 0.5, 0.5) - weight[0]);
+            coeff[1][0] = current * (FP3(0.5, 0.5, 0.5) - weight[1]);
+            coeff[0][1] = current * (FP3(0.5, 0.5, 0.5) + weight[0]);
+            coeff[1][1] = current * (FP3(0.5, 0.5, 0.5) + weight[1]);
 
-            FP3 W1[2], W2[2], W3[2];
-            W1[0] = (FP)0.5 * (FP3(0.5, 0.5, 0.5) - W[0]) * (FP3(0.5, 0.5, 0.5) - W[0]);
-            W1[1] = (FP)0.5 * (FP3(0.5, 0.5, 0.5) - W[1]) * (FP3(0.5, 0.5, 0.5) - W[1]);
+            FP3 weight1[2], weight2[2], weight3[2];
+            weight1[0] = (FP)0.5 * (FP3(0.5, 0.5, 0.5) - weight[0]) * (FP3(0.5, 0.5, 0.5) - weight[0]);
+            weight1[1] = (FP)0.5 * (FP3(0.5, 0.5, 0.5) - weight[1]) * (FP3(0.5, 0.5, 0.5) - weight[1]);
 
-            W2[0] = FP3(0.75, 0.75, 0.75) - W[0] * W[0];
-            W2[1] = FP3(0.75, 0.75, 0.75) - W[1] * W[1];
+            weight2[0] = FP3(0.75, 0.75, 0.75) - weight[0] * weight[0];
+            weight2[1] = FP3(0.75, 0.75, 0.75) - weight[1] * weight[1];
 
-            W3[0] = (FP)0.5 * (FP3(0.5, 0.5, 0.5) + W[0]) * (FP3(0.5, 0.5, 0.5) + W[0]);
-            W3[1] = (FP)0.5 * (FP3(0.5, 0.5, 0.5) + W[1]) * (FP3(0.5, 0.5, 0.5) + W[1]);
+            weight3[0] = (FP)0.5 * (FP3(0.5, 0.5, 0.5) + weight[0]) * (FP3(0.5, 0.5, 0.5) + weight[0]);
+            weight3[1] = (FP)0.5 * (FP3(0.5, 0.5, 0.5) + weight[1]) * (FP3(0.5, 0.5, 0.5) + weight[1]);
 
             Int3 idx[2];
-            idx[0] = oldLocalOrigin;
-            idx[1] = localOrigin;
-            // std::cout << minCoords << std::endl;
-            // std::cout << "oldLocalOrigin: " << oldLocalOrigin << std::endl;
-            // std::cout << "localOrigin: " << localOrigin << std::endl;
-            // std::cout << "startGridIdx: " << this->startGridIdx << std::endl;
-            // std::cout << "baseGridIdx: " << this->baseGridIdx << std::endl;
-            // std::cout << "idx[0]: " << idx[0] << std::endl;
-            // std::cout << "idx[1]: " << idx[1] << std::endl;
+            idx[0] = oldLocalIndex;
+            idx[1] = localIndex;
 
-            for(int i = 0; i < 2; i++)
-            for(int j = 0; j < 2; j++)
+            for (int i = 0; i < 2; ++i)
+            for (int j = 0; j < 2; ++j)
             {
-                this->Jx[idx[i].x + j][idx[i].y - 1][idx[i].z - 1] += F[i][j].x * W1[i].y * W1[i].z;
-                this->Jx[idx[i].x + j][idx[i].y - 1][idx[i].z]     += F[i][j].x * W1[i].y * W2[i].z;
-                this->Jx[idx[i].x + j][idx[i].y - 1][idx[i].z + 1] += F[i][j].x * W1[i].y * W3[i].z;
-                this->Jx[idx[i].x + j][idx[i].y]    [idx[i].z - 1] += F[i][j].x * W2[i].y * W1[i].z;
-                this->Jx[idx[i].x + j][idx[i].y]    [idx[i].z]     += F[i][j].x * W2[i].y * W2[i].z;
-                this->Jx[idx[i].x + j][idx[i].y]    [idx[i].z + 1] += F[i][j].x * W2[i].y * W3[i].z;
-                this->Jx[idx[i].x + j][idx[i].y + 1][idx[i].z - 1] += F[i][j].x * W3[i].y * W1[i].z;
-                this->Jx[idx[i].x + j][idx[i].y + 1][idx[i].z]     += F[i][j].x * W3[i].y * W2[i].z;
-                this->Jx[idx[i].x + j][idx[i].y + 1][idx[i].z + 1] += F[i][j].x * W3[i].y * W3[i].z;
+                this->Jx[idx[i].x + j][idx[i].y - 1][idx[i].z - 1] += coeff[i][j].x * weight1[i].y * weight1[i].z;
+                this->Jx[idx[i].x + j][idx[i].y - 1][idx[i].z]     += coeff[i][j].x * weight1[i].y * weight2[i].z;
+                this->Jx[idx[i].x + j][idx[i].y - 1][idx[i].z + 1] += coeff[i][j].x * weight1[i].y * weight3[i].z;
+                this->Jx[idx[i].x + j][idx[i].y]    [idx[i].z - 1] += coeff[i][j].x * weight2[i].y * weight1[i].z;
+                this->Jx[idx[i].x + j][idx[i].y]    [idx[i].z]     += coeff[i][j].x * weight2[i].y * weight2[i].z;
+                this->Jx[idx[i].x + j][idx[i].y]    [idx[i].z + 1] += coeff[i][j].x * weight2[i].y * weight3[i].z;
+                this->Jx[idx[i].x + j][idx[i].y + 1][idx[i].z - 1] += coeff[i][j].x * weight3[i].y * weight1[i].z;
+                this->Jx[idx[i].x + j][idx[i].y + 1][idx[i].z]     += coeff[i][j].x * weight3[i].y * weight2[i].z;
+                this->Jx[idx[i].x + j][idx[i].y + 1][idx[i].z + 1] += coeff[i][j].x * weight3[i].y * weight3[i].z;
 
-                this->Jy[idx[i].x - 1][idx[i].y + j][idx[i].z - 1] += F[i][j].y * W1[i].x * W1[i].z;
-                this->Jy[idx[i].x - 1][idx[i].y + j][idx[i].z]     += F[i][j].y * W1[i].x * W2[i].z;
-                this->Jy[idx[i].x - 1][idx[i].y + j][idx[i].z + 1] += F[i][j].y * W1[i].x * W3[i].z;
-                this->Jy[idx[i].x]    [idx[i].y + j][idx[i].z - 1] += F[i][j].y * W2[i].x * W1[i].z;
-                this->Jy[idx[i].x]    [idx[i].y + j][idx[i].z]     += F[i][j].y * W2[i].x * W2[i].z;
-                this->Jy[idx[i].x]    [idx[i].y + j][idx[i].z + 1] += F[i][j].y * W2[i].x * W3[i].z;
-                this->Jy[idx[i].x + 1][idx[i].y + j][idx[i].z - 1] += F[i][j].y * W3[i].x * W1[i].z;
-                this->Jy[idx[i].x + 1][idx[i].y + j][idx[i].z]     += F[i][j].y * W3[i].x * W2[i].z;
-                this->Jy[idx[i].x + 1][idx[i].y + j][idx[i].z + 1] += F[i][j].y * W3[i].x * W3[i].z;
+                this->Jy[idx[i].x - 1][idx[i].y + j][idx[i].z - 1] += coeff[i][j].y * weight1[i].x * weight1[i].z;
+                this->Jy[idx[i].x - 1][idx[i].y + j][idx[i].z]     += coeff[i][j].y * weight1[i].x * weight2[i].z;
+                this->Jy[idx[i].x - 1][idx[i].y + j][idx[i].z + 1] += coeff[i][j].y * weight1[i].x * weight3[i].z;
+                this->Jy[idx[i].x]    [idx[i].y + j][idx[i].z - 1] += coeff[i][j].y * weight2[i].x * weight1[i].z;
+                this->Jy[idx[i].x]    [idx[i].y + j][idx[i].z]     += coeff[i][j].y * weight2[i].x * weight2[i].z;
+                this->Jy[idx[i].x]    [idx[i].y + j][idx[i].z + 1] += coeff[i][j].y * weight2[i].x * weight3[i].z;
+                this->Jy[idx[i].x + 1][idx[i].y + j][idx[i].z - 1] += coeff[i][j].y * weight3[i].x * weight1[i].z;
+                this->Jy[idx[i].x + 1][idx[i].y + j][idx[i].z]     += coeff[i][j].y * weight3[i].x * weight2[i].z;
+                this->Jy[idx[i].x + 1][idx[i].y + j][idx[i].z + 1] += coeff[i][j].y * weight3[i].x * weight3[i].z;
 
-                this->Jz[idx[i].x - 1][idx[i].y - 1][idx[i].z + j] += F[i][j].z * W1[i].y * W1[i].x;
-                this->Jz[idx[i].x]    [idx[i].y - 1][idx[i].z + j] += F[i][j].z * W1[i].y * W2[i].x;
-                this->Jz[idx[i].x + 1][idx[i].y - 1][idx[i].z + j] += F[i][j].z * W1[i].y * W3[i].x;
-                this->Jz[idx[i].x - 1][idx[i].y]    [idx[i].z + j] += F[i][j].z * W2[i].y * W1[i].x;
-                this->Jz[idx[i].x]    [idx[i].y]    [idx[i].z + j] += F[i][j].z * W2[i].y * W2[i].x;
-                this->Jz[idx[i].x + 1][idx[i].y]    [idx[i].z + j] += F[i][j].z * W2[i].y * W3[i].x;
-                this->Jz[idx[i].x - 1][idx[i].y + 1][idx[i].z + j] += F[i][j].z * W3[i].y * W1[i].x;
-                this->Jz[idx[i].x]    [idx[i].y + 1][idx[i].z + j] += F[i][j].z * W3[i].y * W2[i].x;
-                this->Jz[idx[i].x + 1][idx[i].y + 1][idx[i].z + j] += F[i][j].z * W3[i].y * W3[i].x;
+                this->Jz[idx[i].x - 1][idx[i].y - 1][idx[i].z + j] += coeff[i][j].z * weight1[i].y * weight1[i].x;
+                this->Jz[idx[i].x]    [idx[i].y - 1][idx[i].z + j] += coeff[i][j].z * weight1[i].y * weight2[i].x;
+                this->Jz[idx[i].x + 1][idx[i].y - 1][idx[i].z + j] += coeff[i][j].z * weight1[i].y * weight3[i].x;
+                this->Jz[idx[i].x - 1][idx[i].y]    [idx[i].z + j] += coeff[i][j].z * weight2[i].y * weight1[i].x;
+                this->Jz[idx[i].x]    [idx[i].y]    [idx[i].z + j] += coeff[i][j].z * weight2[i].y * weight2[i].x;
+                this->Jz[idx[i].x + 1][idx[i].y]    [idx[i].z + j] += coeff[i][j].z * weight2[i].y * weight3[i].x;
+                this->Jz[idx[i].x - 1][idx[i].y + 1][idx[i].z + j] += coeff[i][j].z * weight3[i].y * weight1[i].x;
+                this->Jz[idx[i].x]    [idx[i].y + 1][idx[i].z + j] += coeff[i][j].z * weight3[i].y * weight2[i].x;
+                this->Jz[idx[i].x + 1][idx[i].y + 1][idx[i].z + j] += coeff[i][j].z * weight3[i].y * weight3[i].x;
             }
         }
     };

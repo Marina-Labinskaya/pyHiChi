@@ -29,7 +29,6 @@ namespace pfc {
 
         ParticleType operator *() { return pPArray->operator[](index); }
         ParticleType operator *() const { return pPArray->operator[](index); }
-        void IteratorOnRawParticle(const typename pArray_t::ParticleType& particle){ pPArray->changeParticle(particle, index);};
         const iteratorPArray &operator ++() { ++index; return *this; }
         const iteratorPArray &operator --() { --index; return *this; }
         iteratorPArray operator ++(int) 
@@ -142,8 +141,8 @@ namespace pfc {
             return ParticleProxyType(particles[idx]);
         }
 
-        void changeParticle(const ParticleType& particle, int idx) {
-            particles[idx] = particle;
+        void changeParticle(const ParticleProxyType& particle, int idx) {
+            particles[idx] = ParticleType(particle);
         }
 
         inline ParticleProxyType back()
