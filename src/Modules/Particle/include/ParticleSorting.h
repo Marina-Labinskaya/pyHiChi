@@ -8,7 +8,7 @@ namespace pfc {
     template <class TGrid, class T_ParticleArray>
     class ParticleSortingOMP {
     public:
-        ParticleSorting(TGrid* _grid, T_ParticleArray& particleArray): 
+        ParticleSortingOMP(TGrid* _grid, T_ParticleArray& particleArray): 
             nn(_grid->numCells.x * _grid->numCells.y * _grid->numCells.z) {
             this->grid = _grid;
             h.resize(n_threads);
