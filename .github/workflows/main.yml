@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   ubuntu-gcc-build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
     - name: Setup environment
@@ -60,7 +60,7 @@ jobs:
         export OMP_NUM_THREADS=4
         ${PWD}/build_pyHiChi/src/UnitTests/tests --gtest_repeat=10 --gtest_break_on_failure
   ubuntu-clang-build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
     - name: Setup environment
